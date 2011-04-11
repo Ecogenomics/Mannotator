@@ -1,0 +1,98 @@
+------------------------------------------------
+Mannotator
+------------------------------------------------
+
+Behold! The Mannotator walks among us!
+
+------------------------------------------------
+What is it?
+------------------------------------------------
+
+With such an exciting name, you may be forgiven for thinking that the mannotator is something other than a microbial sequence annotator, BUT, you'd be wrong… If you have a microbial assembly, then you can use this tool to annotate your contigs. This tool is not perfect, nor complete. Any and all suggestions are welcome!
+
+------------------------------------------------
+How do I use it?
+------------------------------------------------
+
+NOTE:These instructions are made for the install on Eury. They can easily be modified to work elsewhere…
+
+Step 1: Ensure all you contig names (fasta IDs) are computer friendly. Avoid the following characters in fasta headers (always a good idea anyway…). Also, make sure that all the fasta headers are unique!
+
+Avoid these characters:
+
+| 
+space
+\
+&
+*
+(
+)
+&
+
+Step 2. Find ORFs in your sequences. Use prodigal (on eury) and the RAST server http://rast.nmpdr.org/
+
+$ prodigal -i IN_FILE -o OUT_FILE.gff3 -f gff
+
+Step 3. Copy the resulting gff3 files and the multiple fasta file containing your contigs into a working directory.
+
+Step 4. Unleash the mannotator!
+
+The pipeline consists of one data file, two perl scripts which do the work and one “outer” script which ties them together. Here is a quick rundown what is being done by the mannotator and how to run it. Read below to learn about what the scripts are doing.
+
+   1.
+      Combine multiple gff3 files into one and extract fasta sequences of un-annotated ORFs
+   2.
+      Use Blastx and the Uniref90 DB to get best blast results for each fasta sequence
+   3.
+      Use the Uniref90 ID obtained in the previous step to assign KEGG and COG/NOG IDs to each of the un-annotated fasta files.
+   4.
+      Mix all the information together and return a single gff3 file with your annotations.
+
+To run the mannotator (takes a while, perhaps you should use nohup or screen). The order of the GFF files is IMPORTANT. You should put thr RAST file first, followed by the prodigal file.
+
+$ mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -uniref|u LOCATION -u2a|a FILE
+
+Where the uniref file can be found (on Eury) at:
+
+/Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90.fasta
+
+And the u2a file is at:
+
+/Volumes/Biodata/ANN_mappings/ANN_mappings.txt
+
+The pipeline will output a file called “mannotatored.gff3”
+
+FIN
+
+------------------------------------------------
+More info on the scripts themselves
+------------------------------------------------
+
+The first is called combineGff3.pl. It will take any number of gff3 files and merge them into one combined file. Also, it is currently programmed to extract the fasta sequences for ORFs which have not been given a RAST/FIG annotation. This script will run as a stand alone application. The order of the gff3 files is IMPORTANT. You need to supply them in the order in which you trust them.
+
+$ combineGff3.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
+
+The second script is called blast2Ann.pl. It will take a Uniref90 blastx result and add KEGG and COG/NOG annotations to your contigs. Again, it can be run as a standalone.
+
+$ blast2ann.pl -u2a|u ANN_file -gff3|g gff3_file
+
+The ANN_file is a special text file which links Uniref90 IDs to KEGG and COG/NOG IDs. You can find a version of this file on Eury at:
+
+/Volumes/Biodata/ANN_mappings/ANN_mappings.txt
+
+You can update this file with newer annotations by running the script idMerge.pl, also found in the mannotator directory on Eury.
+
+The format of the ANN_mappings file is as follows:
+
+UniProtID^[;Ontology_term=COG_ID:COG-NOGID[;Ontology_term=COG_DESC:COG-NOG text description]][;Ontology_term=KEGG_ID:KEGG entryID[;Ontology_term=KEG_PATHWAY:KEGG pathway ID][;Ontology_term=KEGG_ONTOLOGY:KEGG ko ID]]
+
+Some sample lines:
+
+B8NAL8^;Ontology_term=KEGG_ID:afv:AFLA_042430
+B9LMU9^;Ontology_term=KEGG_ID:hla:Hlac_1092;Ontology_term=KEGG_PATHWAY:path:hla02010;Ontology_term=KEGG_ONTOLOGY:ko:K01999
+Q2S9X8^;Ontology_term=COG_ID:COG2969;Ontology_term=COG_DESC:Stringent starvation protein B;Ontology_term=KEGG_ID:hch:HCH_10003;Ontology_term=KEGG_ONTOLOGY:ko:K03600
+B2TZD5^;Ontology_term=KEGG_ID:sbc:SbBS512_E3074;Ontology_term=KEGG_ONTOLOGY:ko:K01146
+Q21RE3^;Ontology_term=COG_ID:COG1881;Ontology_term=COG_DESC:Phospholipid-binding protein;Ontology_term=KEGG_ID:rfr:Rfer_3962;Ontology_term=KEGG_ONTOLOGY:ko:K06910
+
+Use this file however you please…
+
