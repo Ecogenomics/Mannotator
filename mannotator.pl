@@ -292,13 +292,15 @@ sub annotate {
     print $out_fh "##gff-version  3\n";
     foreach my $current_folder (keys %global_tmp_folders)
     {
-        open my $this_gff3, "<", "$current_folder/annotated.gff3" or die $!;
-        while(<$this_gff3>)
+        if(open my $this_gff3, "<", "$current_folder/annotated.gff3")
         {
-            next if $_ =~ /^#/;
-            print $out_fh $_;
+            while(<$this_gff3>)
+            {
+                next if $_ =~ /^#/;
+                print $out_fh $_;
+            }
+            close $this_gff3;
         }
-        close $this_gff3;
     }
     close $out_fh;
 }
