@@ -439,7 +439,7 @@ sub recombineGff3() {
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+");
+    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -469,7 +469,7 @@ sub checkParams {
     if(!exists $options{'uniref'})
     {
         print "ERROR: You need to give me the location of the UniRef blast database to continue!\n";
-        print "Perhaps, try this one (on EURY): /Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90.fasta\n";
+        print "Perhaps, try this one (on EURY): /Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90_micro.fasta\n";
         exec("pod2usage $0");
     }
     
@@ -542,7 +542,8 @@ __DATA__
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
-      [-out -o] FILE               Filename of the final gff3 file [default: mannotatored.gff3]
+      [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
+      [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
       [-blastx -x]                 Keep only the blastx file (overrides -k option)
       [-help -h]                   Displays basic usage information
