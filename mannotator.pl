@@ -327,7 +327,7 @@ sub cleanTmps {
 # stolen from blast2ann.pl
 sub loadU2A() {
     #-----
-    # load the eggNOG association file.
+    # load the annotation association file.
     # 
     # File must look like this:
     # 
@@ -347,7 +347,7 @@ sub loadU2A() {
         $global_U2A_hash{$data[0]} = $data[1];
     }
     close $U2A_fh;
-    print "done.  Loaded ".keys(%global_U2A_hash)." Uniprot 2 eggNOG refs\n";
+    print "done.  Loaded ".keys(%global_U2A_hash)." Uniprot 2 annotation refs\n";
 }
 
 sub generateAnnotations() {
@@ -359,7 +359,7 @@ sub generateAnnotations() {
     foreach my $blast_file (@blast_files) 
     {
         # Load the result into memory
-        my $in = new Bio::SearchIO(-format => 'blast',
+        my $in = new Bio::SearchIO(-format => 'blastTable',
             -file => "$current_folder/$blast_file")
             or die "Failed to read from $blast_file: $!\n";
         

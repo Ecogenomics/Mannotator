@@ -121,7 +121,7 @@ sub loadU2A() {
         $global_U2A_hash{$data[0]} = $data[1];
     }
     close $U2A_fh;
-    print "done.  Loaded ".keys(%global_U2A_hash)." Uniprot 2 eggNOG refs\n";
+    print "done.  Loaded ".keys(%global_U2A_hash)." Uniprot 2 annotation refs\n";
 }
 
 sub generateAnnotations() {
@@ -134,7 +134,7 @@ sub generateAnnotations() {
     {
         # Load the result into memory
         print "Now parsing: $blast_file\n";
-        my $in = new Bio::SearchIO(-format => 'blast',
+        my $in = new Bio::SearchIO(-format => 'blastTable',
                                 -file => "$global_working_dir/$blast_file")
             or die "Failed to read from $blast_file: $!\n";
         
@@ -151,6 +151,7 @@ sub generateAnnotations() {
                 last if($num_hits_done > $global_results_max_cut_off);
                 my $hit_name = $hit->name;
                 $hit_name =~ s/UniRef90_([^ ]*).*/$1/;
+                print $hit_name."\n";
                 if("Unknown" ne $hit_name)
                 {
                     if ($hit->significance <= $global_evalue_cutoff) 
