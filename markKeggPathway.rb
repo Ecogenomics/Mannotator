@@ -57,8 +57,11 @@ class App
         @arguments = arguments
         @stdin = stdin
         @objs = []
-        @queryPathways = []
         
+        # create multilayered hash
+        @queryPathways= Hash.new {|hash,key| hash[key] = Hash.new{ 
+                  |hash,key| hash[key] = 0 
+              }} 
         # Set defaults
         @options = OpenStruct.new
         @options.verbose = false
@@ -96,13 +99,14 @@ class App
                 end
             end
             
-            uniq_pathways = get_unique_pathways(@queryPathways)
-            
-            uniq_pathways.each do |queryPath|
-                mark_enzymes(queryPath)
-            end
-            #process_command
-            
+            # iterate through the found pathways.  Give the key
+            # which is the pathway and the internal hash for 
+            # all of the enzymes that have matched to that pathway
+            # calling the keys method returns an array which gets passed
+            # in to the sub
+            @queryPathways.each do |queryPath, listOfEnzymes|
+                mark_enzymes(queryPath, listOfEnzymes.keys)
+            end            
             puts "\
             Finished at #{DateTime.now}" if @options.verbose
             
@@ -185,10 +189,11 @@ class App
         end
         if @options.allpath
             pathways.each do |path|
-                @queryPathways<<path
+                # add the enzyme to the pathway
+                @queryPathways[path][enzyme] = 1
             end
         else
-            @queryPathways<<pathways.shift
+            @queryPathways[pathways.shift][enzyme] = 1
         end
     end
     
@@ -199,44 +204,22 @@ class App
         end
         if @options.allpath
             pathways.each do |path|
-                @queryPathways<<path
-            end
+				@queryPathways[path][enzyme] = 1            
+			end
         else
-            @queryPathways<<pathways.shift
+            @queryPathways[pathways.shift][enzyme] = 1
         end
-    end
-        
-        
-    def get_unique_pathways(pathways)
-        return pathways.uniq
     end
     
     def print_kegg_pathway(url2, queryPath)
         @serv.save_image(url2, "#{queryPath}.gif")
     end
     
-    def mark_enzymes(queryPath)
+    def mark_enzymes(queryPath, matchEnzymes)
         #queryPathways.each do |queryPath| 
         puts "marking enzymes in #{queryPath}" if options.verbose
-        url2 = @serv.mark_pathway_by_objects(queryPath, @objs)
+        url2 = @serv.mark_pathway_by_objects(queryPath, matchEnzymes)
         print_kegg_pathway(url2, queryPath)
-    end
-    
-    
-    def process_command
-        # TO DO - do whatever this app does
-        
-        #process_standard_input # [Optional]
-    end
-    
-    def process_standard_input
-        input = @stdin.read      
-        # TO DO - process input
-        
-        # [Optional]
-        # @stdin.each do |line| 
-        #  # TO DO - process each line
-        #end
     end
 end
 
