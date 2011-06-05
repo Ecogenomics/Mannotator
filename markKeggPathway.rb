@@ -13,13 +13,13 @@
 #   For help use: markKeggPathway.rb -h
 # == Options
 #   -h, --help          Displays help message
-#   -v, --version       Display the version, then exit
-#   -q, --quiet         Output as little as possible, overrides verbose
-#   -V, --verbose       Verbose output
-#   -k, --ko_numbers    Input is a list of KO numbers. Default is to use EC numbers
-#   -a, --allpath       Evaluate every path that an enzyme is contained in.
-#                       The default is to use only the first pathway returned by 
-#                       KEGG, which is the most specific for that enzyme
+#   -V, --version       Display the version, then exit
+#   -q, --quiet         Output as little as possible, overrides verbose [default: false]
+#   -v, --verbose       Verbose output [Default: false]
+#   -k, --ko_numbers    Input is a list of KO numbers. [Default: EC numbers]
+#   -a, --allpath       Keep allpathways, even the global ones [Default: false]
+#   -r, --report        Print a .csv file of the pathways and their enzymes [Default: false]
+
 #
 # == Author
 #   Connor Skennerton
@@ -49,7 +49,7 @@ require 'date'
 require 'bio'
 
 class App
-    VERSION = '0.0.1'
+    VERSION = '0.0.2'
     
     attr_reader :options
     
@@ -68,6 +68,8 @@ class App
         @options.quiet = false
         @options.ko = false
         @options.allpath = false
+        @options.report = false
+        #@report_file = "#{File.basename(arguements[0])}.report" 
         @serv = Bio::KEGG::API.new
 
         # TO DO - add additional defaults
@@ -80,15 +82,17 @@ class App
             
             puts "Start at #{DateTime.now}\
             \
-            " if @options.verbose
+            " if not @options.quiet
             
             output_options if @options.verbose # [Optional]
-            
-            process_arguments            
 
             read_ec_file
-            
-            
+
+			@objs.uniq!
+			if @options.verbose
+            	puts "there are a total of #{@objs.length} enzymes"
+            end
+			puts "Querying KEGG for the pathways of each enzyme..." if not @options.quiet
             if @options.ko
                 @objs.each do |enzyme|
                     get_kegg_pathways_ko(enzyme)
@@ -99,16 +103,20 @@ class App
                 end
             end
             
+            report_pathways if @options.report
+            
+            remove_global if not @options.allpath
             # iterate through the found pathways.  Give the key
             # which is the pathway and the internal hash for 
             # all of the enzymes that have matched to that pathway
             # calling the keys method returns an array which gets passed
             # in to the sub
+            puts"Downloading marked pathways..." if not @options.quiet
             @queryPathways.each do |queryPath, listOfEnzymes|
                 mark_enzymes(queryPath, listOfEnzymes.keys)
             end            
             puts "\
-            Finished at #{DateTime.now}" if @options.verbose
+            Finished at #{DateTime.now}" if not @options.quiet
             
             else
             output_usage
@@ -128,7 +136,7 @@ class App
         opts.on('-q', '--quiet')      { @options.quiet = true }
         opts.on('-k', '--ko_number')  { @options.ko = true}
         opts.on('-a', '--allpath')    { @options.allpath = true}
-        # TO DO - add additional options
+        opts.on('-r', '--report')     { @options.report = true}
         
         opts.parse!(@arguments) rescue return false
         
@@ -157,8 +165,21 @@ class App
     end
     
     # Setup the arguments
-    def process_arguments
-        # TO DO - place in local vars, etc
+    def remove_global
+    # the following pathways are global
+    # eg. map01100 is 'metabolism'
+    # these are very big and are not nesessary to annotate
+		if @queryPathways.has_key?('path:map01100')
+			@queryPathways.delete('path:map01100')
+		end
+		if @queryPathways.has_key?('path:map01110')
+			@queryPathways.delete('path:map01110')
+		end
+		if @queryPathways.has_key?('path:map01120')
+			@queryPathways.delete('path:map01120')
+		end
+		
+		
     end
     
     def output_help
@@ -187,14 +208,10 @@ class App
         if @options.verbose 
             puts "#{enzyme} is a member of #{pathways.length} pathway(s)"
         end
-        if @options.allpath
-            pathways.each do |path|
-                # add the enzyme to the pathway
-                @queryPathways[path][enzyme] = 1
-            end
-        else
-            @queryPathways[pathways.shift][enzyme] = 1
-        end
+		pathways.each do |path|
+			# add the enzyme to the pathway
+			@queryPathways[path][enzyme] = 1
+		end
     end
     
     def get_kegg_pathways_ko(enzyme)
@@ -202,13 +219,21 @@ class App
         if @options.verbose 
             puts "#{enzyme} is a member of #{pathways.length} pathway(s)"
         end
-        if @options.allpath
-            pathways.each do |path|
-				@queryPathways[path][enzyme] = 1            
-			end
-        else
-            @queryPathways[pathways.shift][enzyme] = 1
-        end
+		pathways.each do |path|
+			@queryPathways[path][enzyme] = 1            
+		end
+    end
+    
+    def report_pathways
+    	f = File.new("#{@arguments[0]}.csv", 'w')
+    	@queryPathways.each do |key, hash|
+    		f.print "#{key}"
+    		hash.each do |enzyme, val|
+    			f.print ",#{enzyme}"
+    		end
+    		f.puts
+    	end
+    	f.close
     end
     
     def print_kegg_pathway(url2, queryPath)
