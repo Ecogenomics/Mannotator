@@ -64,6 +64,10 @@ if(exists $options->{'evalue'}) { $global_evalue_cutoff = $options->{'evalue'}; 
 #results cut off
 my $global_results_max_cut_off = 1;
 
+#blast program to run
+my $blast_program = "blastx";
+if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
+
 #
 # Step 1a. Split down the Gff3 files into multiple folders
 #
@@ -211,13 +215,13 @@ sub blastUnknowns {
     # Blast unknowns against the UniRef90 DB
     #
     # first blast em'
-    my $cmd = "blastall -p blastx -i $global_tmp_fasta -d $options->{'uniref'} -o $global_tmp_fasta.blastx -m 8";
+    my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'uniref'} -o $global_tmp_fasta.$blast_program -m 8";
     `$cmd`;
     
     # now split them across multiple folders...
     my $current_dir_name = "__DOOF";
     my $current_file_handle;
-    open my $blast_results, "<", "$global_tmp_fasta.blastx" or die $!;
+    open my $blast_results, "<", "$global_tmp_fasta.$blast_program" or die $!;
     while(<$blast_results>)
     {
         # split the line, we need to know where to put this guy
@@ -235,7 +239,7 @@ sub blastUnknowns {
                 # we have a file to close
                 close $current_file_handle;
             }
-            open $current_file_handle, ">", "$dir_name/unknowns.blastx" or die $!;
+            open $current_file_handle, ">", "$dir_name/unknowns.$blast_program" or die $!;
             $current_dir_name = $dir_name;
         }
         print $current_file_handle $_;
@@ -265,7 +269,7 @@ sub annotate {
         if (-d $current_folder) {
             opendir(INDIR, $current_folder)
             or die "Failed to read from directory $current_folder:$!\n";
-            @blast_files = grep /\.blast[nx]$/, readdir (INDIR);
+            @blast_files = grep /\.[t]blast[pnx]$/, readdir (INDIR);
             closedir (INDIR);
         }
 
@@ -320,7 +324,7 @@ sub cleanTmps {
     
     if(0 == $keep_bx)
     {
-       `rm $global_tmp_fasta.blastx`;
+       `rm $global_tmp_fasta.$blast_program`;
     }
 }
 
@@ -439,7 +443,7 @@ sub recombineGff3() {
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s");
+    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s","blast_prg|p:s");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -536,12 +540,13 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -uniref|u LOCATION -u2a|a FILE
+    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST TYPE -uniref|u LOCATION -u2a|a FILE
 
       -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
+      [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
