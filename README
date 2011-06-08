@@ -64,22 +64,6 @@ The pipeline will output a file called â€œmannotatored.gff3â€
 
 FIN
 
-
-POST-FIN
-
-you can use mannotatored.gff3 in down stream processing!  
-
-$ extractECnumbers.pl mannotated.gff3 >some_random_output_file
-
-will parse the output of mannotator.pl and (if you pipe to a file) produces a file that contains all of the genes that could be assigned an EC number.
-
-$ markKeggPathway.rb -a file_containing_EC_numbers
-
-will take all of the EC numbers and query the KEGG web server for the path that the enzyme belongs to.  After going through all the enzymes the script will then download all of the corresponding KEGG pathways with the genes from your sample already marked in with a red colour.
-
-A word of warningÉ this script will download all the pathways that are represented in the sample, even if there is only one EC number marked so you could find yourself with a lot of KEGG pathways to shift through.  Second word of warning some pathways are like "bacterial metabolism" which has a fair chance of including everything in your sample in which case it will take a long time for the program to runÉ just don't expect to be able to do this in 30 mins thats all I'm saying.
-
-
 ------------------------------------------------
 More info on the scripts themselves
 ------------------------------------------------
@@ -112,18 +96,4 @@ Q21RE3^;Ontology_term=COG_ID:COG1881;Ontology_term=COG_DESC:Phospholipid-binding
 
 Use this file however you pleaseâ€¦
 
-The extractECnumbers.pl is a very simple script which will parse mannotatored.gff3 with a regular expression looking for EC numbers.  By default it will print them out to screen but you can pipe them to a file
 
-$ extractECnumbers.pl mannotated.gff3 >some_random_output_file
-
-Unlike the other scripts in the Mannotator markKeggPathways is written in ruby, which means you will need to download and install Ruby (www.ruby-lang.org) and install the 'bioruby' package.
-
-You can do this easily once Ruby is installed by using the following commands:
-
-$ sudo gem install bio 
-
-markKeggPayway.rb will take as input the file of EC numbers that you created in the script before ( or a list of KO numbers) and query the KEGG database for the pathway they belong to and download pictures of those pathways.
-
-The -r option will print out a .csv file of all of the pathways with there respective enzymes.
-
-$ markKeggPathway.rb [-ahkrqvV] file_containing_EC_numbers|file_containing_KO_numbers
