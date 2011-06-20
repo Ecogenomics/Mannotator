@@ -190,7 +190,6 @@ while(<$Go_fh>)
 	next if $_ =~ /^!/;
 	my @data = split /\s+/, $_;
 	$data[6] =~ s/\w+://;
-	print "$data[6]\n";
 	if(!exists $global_seenUP_hash{$data[6]})
     {
         $global_seenUP_hash{$data[6]} = 0;
