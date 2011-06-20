@@ -60,6 +60,7 @@ my %global_KEGG_k_hash = ();
 my %global_KEGG_e_hash = ();
 my %global_UPN_hash = ();
 my %global_COG2Txt_hash = ();
+my %global_Go2U_hash = ();
 
 # open all the files!
 open my $COG_fh, "<", $options->{'Uc'} or die $!;
@@ -70,6 +71,8 @@ open my $KEGGK_fh, "<", $options->{'Kk'} or die $!;
 open my $KEGGE_fh, "<", $options->{'Ke'} or die $!;
 
 open my $N2A_fh, "<", $options->{'Cd'} or die $!;
+
+open my $GO_fh, "<", $options->{'Go'} or die $!;
 
 open my $OUT_fh, ">", $global_outfile_name or die $!;
 
@@ -174,6 +177,33 @@ while(<$COG_fh>)
 print "done\n";
 close $COG_fh;
 
+print "Loading GO ontology terms for uniprot..."
+
+#IPI	IPI00571489	IPI00571489	GO:0003677	GO_REF:0000024	ISS	UniProtKB:P29375 F	protein	taxon:9031	20061117	AgBase
+while(<$Go_fh>)
+{
+	chomp $_;
+	next if $_ =~ /^!/;
+	my @data = split /\s+/, $_;
+	$data[6] =~ s/\w+://;
+	print "$data[6]\n";
+	if(!exists $global_seenUP_hash{$data[6]})
+    {
+        $global_seenUP_hash{$data[6]} = 0;
+    }
+    my $out_string;
+    if (!exists $global_Go2U_hash{$data[6]})
+    {
+    	$global_Go2U_hash{$data[6]} = ";db_xref=$data[3]";
+    }
+    else
+    {
+    	$global_Go2U_hash{$data[6]} .=";db_xref=$data[3]"; 
+    }
+}
+close $Go_fh;
+print "done\n";
+
 # print the results
 print "Vomiting on the file system...\n";
 foreach my $UPID (keys %global_seenUP_hash)
@@ -215,9 +245,16 @@ foreach my $UPID (keys %global_seenUP_hash)
             # KEGG enzyme
             if(exists $global_KEGG_e_hash{$ko_ID})
             {
-                $out_string .= ";Ontology_term=KEGG_ENZYME:".$global_KEGG_e_hash{$ko_ID};
+                $out_string .= ";EC_number=".$global_KEGG_e_hash{$ko_ID};
             }
         }
+    }
+    
+    # GO annotation stuff
+    if (exists $global_Go2U_hash{$UPID})
+    {
+    	$found_one = 1;
+    	$out_string .= $global_Go2U_hash{$UPID};
     }
     
     if(0 != $found_one)
@@ -238,7 +275,7 @@ close $OUT_fh;
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "Ku:s", "Uc:s", "Kp:s", "Kk:s", "Ke:s", "Cd:s", "o:s", );
+    my @standard_options = ( "help|h+", "Ku:s", "Uc:s", "Kp:s", "Kk:s", "Ke:s", "Cd:s", "o:s", "Go:s" );
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -253,7 +290,7 @@ sub checkParams {
     #
     exec("pod2usage $0") if $options{'help'};
     
-    if(!exists $options{'Uc'} || !exists $options{'Kp'} || !exists $options{'Ke'} || !exists $options{'Kk'} || !exists $options{'Cd'} || !exists $options{'Ku'})
+    if(!exists $options{'Uc'} || !exists $options{'Kp'} || !exists $options{'Ke'} || !exists $options{'Kk'} || !exists $options{'Cd'} || !exists $options{'Ku'} || !exists $options{'Go'})
     {
         print "ERROR: Check your input parameters!\n";
         exec("pod2usage $0");
@@ -317,7 +354,7 @@ __DATA__
         -Kp   KEGG_pathways_file    KEGG entry ID to pathway ID [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
         -Kk   KEGG_ko_file          KEGG entry ID to KEGG Ontology ID [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
         -Cd   COG_text              Links descriptions to COG/NOG IDs [http://eggnog.embl.de/cgi_bin/show_download_page.pl]
-        
+        -Go   GO2Uniprot_file       Links Uniprot proteins to their coresponding GO annotations
         
         [-o   OUTFILE]              File to write mappings to. [Default ANN_mappings.txt]
         [-help -h]                  Displays basic usage information
