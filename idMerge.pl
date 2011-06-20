@@ -134,7 +134,11 @@ while(<$KEGGE_fh>)
     my @data = split /\t/, $_;
     if(!exists $global_KEGG_k_hash{$data[0]})
     {
-        $global_KEGG_e_hash{$data[0]} = $data[1];
+        $global_KEGG_e_hash{$data[0]} = ";EC_number=$data[1]";
+        if (defined $data[2])
+        {
+        $global_KEGG_e_hash{$data[0]} .= ";product=$data[2]";	
+        }
     }
 }
 print "done\n";
@@ -177,7 +181,7 @@ while(<$COG_fh>)
 print "done\n";
 close $COG_fh;
 
-print "Loading GO ontology terms for uniprot..."
+print "Loading GO ontology terms for uniprot...";
 
 #IPI	IPI00571489	IPI00571489	GO:0003677	GO_REF:0000024	ISS	UniProtKB:P29375 F	protein	taxon:9031	20061117	AgBase
 while(<$Go_fh>)
@@ -245,7 +249,7 @@ foreach my $UPID (keys %global_seenUP_hash)
             # KEGG enzyme
             if(exists $global_KEGG_e_hash{$ko_ID})
             {
-                $out_string .= ";EC_number=".$global_KEGG_e_hash{$ko_ID};
+                $out_string .= $global_KEGG_e_hash{$ko_ID};
             }
         }
     }
