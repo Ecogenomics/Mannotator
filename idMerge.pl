@@ -72,7 +72,7 @@ open my $KEGGE_fh, "<", $options->{'Ke'} or die $!;
 
 open my $N2A_fh, "<", $options->{'Cd'} or die $!;
 
-open my $GO_fh, "<", $options->{'Go'} or die $!;
+open my $Go_fh, "<", $options->{'Go'} or die $!;
 
 open my $OUT_fh, ">", $global_outfile_name or die $!;
 
