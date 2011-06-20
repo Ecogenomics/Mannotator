@@ -112,6 +112,10 @@ elsif(!exists $options->{'keep'})
         cleanTmps(0);
 }
 
+if(exists $options->{'flatfile'})
+{
+	createFlatFile();
+}
 ######################################################################
 # CUSTOM SUBS
 ######################################################################
@@ -439,11 +443,20 @@ sub recombineGff3() {
     close $ann_fh;
 }
 
+sub createFlatFile
+{
+	print "generating genbank files for contigs..."
+	my $cmd = "gff2genbank.pl $options->{'c'} $global_output_file";
+	`$cmd`;
+	print "done\n";
+}
+
+
 ######################################################################
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s","blast_prg|p:s");
+    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s","blast_prg|p:s", "flatfile|f:+");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -546,6 +559,7 @@ __DATA__
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
+      [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
