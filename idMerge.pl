@@ -214,7 +214,7 @@ foreach my $UPID (keys %global_seenUP_hash)
     my $found_one = 0;
     
     # UPID
-    my $out_string = "$UPID^";
+    my $out_string = "$UPID^;db_xref=Uniprot:$UPID";
     
     # cog
     if(exists $global_UPN_hash{$UPID})
@@ -223,7 +223,7 @@ foreach my $UPID (keys %global_seenUP_hash)
         $out_string .= ";Ontology_term=COG_ID:".$global_UPN_hash{$UPID};
         if(exists $global_COG2Txt_hash{$global_UPN_hash{$UPID}})
         {
-            $out_string .= ";Ontology_term=COG_DESC:".$global_COG2Txt_hash{$global_UPN_hash{$UPID}};
+            $out_string .= ";note=COG_DESC:".$global_COG2Txt_hash{$global_UPN_hash{$UPID}};
         }
     }
     
