@@ -445,7 +445,7 @@ sub recombineGff3() {
 
 sub createFlatFile
 {
-	print "generating genbank files for contigs..."
+	print "generating genbank files for contigs...";
 	my $cmd = "gff2genbank.pl $options->{'c'} $global_output_file";
 	`$cmd`;
 	print "done\n";
