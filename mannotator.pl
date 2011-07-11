@@ -239,7 +239,7 @@ sub blastUnknowns {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
     		# open a file to hold a chunk
-			open (CH, ">","global_tmp_fasta_".$i) or die $!;
+			open (CH, ">","$global_tmp_fasta_".$i) or die $!;
             my $j = 0;
 			while(my $fasta = $seqio_global->next_seq())
 			{
@@ -253,7 +253,7 @@ sub blastUnknowns {
    		for (my $i = 1; $i <= $threads; $i++) 
    		{
      		print "spawning thread $i\n";
-     		my $q = "global_tmp_fasta_$i";
+     		my $q = "$global_tmp_fasta_$i";
      		threads->new(\&worker, $q, $i);
    		}
             
@@ -262,7 +262,7 @@ sub blastUnknowns {
 		
 		for (my $i = 1; $i <= $threads; $i++)
 		{
-			`cat global_tmp_fasta.$i.$blast_program >> global_tmp_fasta.$blast_program`
+			`cat global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program`
 		}
 		
     }
