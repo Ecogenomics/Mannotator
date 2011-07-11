@@ -235,7 +235,7 @@ sub blastUnknowns {
     {
     	my $num_seq_per_file = int ($num_seq / $threads);
     	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
-    	
+    	print "splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
     	for (my $i = 1; $i <= $threads; $i++)
     	{
     		# open a file to hold a chunk
@@ -375,6 +375,14 @@ sub cleanTmps {
     }
     
     `rm $global_tmp_fasta`;
+    
+    if ($threads > 1)
+    {
+    	for (my $i = 1; $i <= $threads; $i++)
+    	{
+    	`rm $global_tmp_fasta_$i $global_tmp_fasta.$i.$blast_program`;
+    	}
+    }
     
     if(0 == $keep_bx)
     {
