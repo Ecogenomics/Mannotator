@@ -262,7 +262,7 @@ sub blastUnknowns {
 		
 		for (my $i = 1; $i <= $threads; $i++)
 		{
-			`cat global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program`
+			`cat $global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program`
 		}
 		
     }
