@@ -21,6 +21,14 @@ my $gffio = Bio::Tools::GFF->new(-file => $ARGV[1], -gff_version => 3);
     # loop over the input stream
     while($feature = $gffio->next_feature()) 
     {
+        # if ($feature->primary_tag()  eq 'CDS' )
+#         {
+#         	my $gene_feature = Bio::SeqFeature::Generic->new( -start => $feature->start(),
+#         													  -end => $feature->end(),
+#         													  -strand => $feature->strand(),
+#         													  -primary_tag => 'gene')
+#         	$feature->add_tag_feature('gene','')
+#         }
         push(@{$features{ $feature->seq_id }}, $feature);
     }
 $gffio->close();
@@ -42,25 +50,3 @@ while(my $seqobj = $fasta->next_seq())
 }
 exit;
 
-
-# 
-# my %genes;
-# while( my $f = $gff->next_feature ) {
-#    my ($group) = $feature->get_tag_values('Group'); # substitute group 
-# #with whatever you have in the group field
-#   push @{$gene{$group}}, $feature;
-# }
-# # get a Bio::Seq object called $seq somehow, either by reading in a 
-# #fasta sequence file, etc...
-# while( my ($gene,$features) = each %genes ) 
-# {
-#   my $location = Bio::Location::Split->new();
-#   for my $f ( @$features ) {
-#     $location->add_sub_Location($f->location);
-#   }
-#   my $genef = Bio::SeqFeature::Generic->new(-location =>$location, 
-# -primary_tag => 'CDS');
-#   $seq->add_SeqFeature($genef);
-# }
-# my $seqio = Bio::SeqIO->new(-format => 'genbank');
-# $seqio->write_seq($seq);

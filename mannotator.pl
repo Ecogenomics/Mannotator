@@ -29,8 +29,10 @@ use warnings;
 #perl modules
 use Getopt::Long;
 use Bio::SeqIO;
+use Bio::Seq;
 use Bio::SearchIO;
-
+use threads;
+use Data::Dumper;
 #locally-written modules
 
 BEGIN {
@@ -68,6 +70,8 @@ my $global_results_max_cut_off = 1;
 my $blast_program = "blastx";
 if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
 
+my $threads = 1;
+if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
 #
 # Step 1a. Split down the Gff3 files into multiple folders
 #
@@ -213,14 +217,60 @@ sub combineGffs {
         `cat $current_folder/unknowns.fa >> $global_tmp_fasta`;
     }
 }
+sub worker {
+	my ($chunk, $n) = @_;
+	my $cmd = "blastall -p $blast_program -i $chunk -d $options->{'uniref'} -o $global_tmp_fasta.$n.$blast_program -m 8";
+    `$cmd`;
+}
+
 
 sub blastUnknowns {
     #-----
     # Blast unknowns against the UniRef90 DB
     #
     # first blast em'
-    my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'uniref'} -o $global_tmp_fasta.$blast_program -m 8";
-    `$cmd`;
+    my $num_seq = `grep -c ">" $global_tmp_fasta`;
+    print "total sequences to blast: $num_seq\n";
+    if ($threads > 1)
+    {
+    	my $num_seq_per_file = int ($num_seq / $threads);
+    	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
+    	
+    	for (my $i = 1; $i <= $threads; $i++)
+    	{
+    		# open a file to hold a chunk
+			open (CH, ">","global_tmp_fasta_".$i) or die $!;
+            my $j = 0;
+			while(my $fasta = $seqio_global->next_seq())
+			{
+                last if $j > $num_seq_per_file;
+                print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";	
+				$j++;
+			}
+            close CH;
+    	}
+    	
+   		for (my $i = 1; $i <= $threads; $i++) 
+   		{
+     		print "spawning thread $i\n";
+     		my $q = "global_tmp_fasta_$i";
+     		threads->new(\&worker, $q, $i);
+   		}
+            
+        $_->join() for threads->list();
+   		
+		
+		for (my $i = 1; $i <= $threads; $i++)
+		{
+			`cat global_tmp_fasta.$i.$blast_program >> global_tmp_fasta.$blast_program`
+		}
+		
+    }
+    else
+    {
+    	my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'uniref'} -o $global_tmp_fasta.$blast_program -m 8";
+    	`$cmd`;
+    }
     
     # now split them across multiple folders...
     my $current_dir_name = "__DOOF";
@@ -456,7 +506,7 @@ sub createFlatFile
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s","blast_prg|p:s", "flatfile|f:+");
+    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s","blast_prg|p:s", "flatfile|f:+", "threads|t:s");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -559,6 +609,7 @@ __DATA__
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
+      [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
