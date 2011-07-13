@@ -56,6 +56,7 @@ my %global_annotations_hash = ();
 my %global_tmp_folders = ();
 my $global_tmp_fasta = "mannotator_unknowns_".time.".fasta";
 
+
 my $global_output_file = "mannotatored.gff3";
 if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
 
@@ -75,33 +76,46 @@ if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
 #
 # Step 1a. Split down the Gff3 files into multiple folders
 #
-print "Splitting gffs and making tmp directories\n";
+unless ($options->{'one'})
+{
+print "Step 1a: Splitting gffs and making tmp directories\n";
 splitGffs();
 
 #
 # Step 1b. Split down the fasta file and also put into the same folders
 #
-print "Splitting fasta\n";
+print "Step 1b: Splitting fasta\n";
 splitFasta();
-
+}
 #
 # Step 2. For each folder, combine the gff files and produce a list of sequences to be blasted!
 #
-print "Combining Gffs\n";
+unless($options->{'two'})
+{
+print "Step 2: Combining Gffs\n";
 combineGffs();
-
+}
 #
 # Step 3. Blast the unknowns against UniRef
 #
-print "Blasting unknown ORFs against UniRef... This could take some time. Perhaps you need a coffee?\n";
+unless ($options->{'three'})
+{
+print "Step 3: Blasting unknown ORFs against UniRef... This could take some time. Perhaps you need a coffee?\n";
 blastUnknowns();
-
+}
+unless ($options->{'four'})
+{
+print "Step 4: Splitting Blast results\n";
+splitBlastResults();
+}
 #
 # Step 4. Annotate the GFFs using blast results and re-combine!
 #
-print "Annotating using the blast results\n";
+unless ($options->{'five'})
+{
+print "Step 5: Annotating using the blast results\n";
 annotate();
-
+}
 #
 # Finally, remove all the temp directories (if we need to)
 #
@@ -217,6 +231,7 @@ sub combineGffs {
         `cat $current_folder/unknowns.fa >> $global_tmp_fasta`;
     }
 }
+
 sub worker {
 	my ($chunk, $n) = @_;
 	my $cmd = "blastall -p $blast_program -i $chunk -d $options->{'uniref'} -o $global_tmp_fasta.$n.$blast_program -m 8";
@@ -239,7 +254,7 @@ sub blastUnknowns {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
     		# open a file to hold a chunk
-			open (CH, ">","$global_tmp_fasta_".$i) or die $!;
+			open (CH, ">",$global_tmp_fasta."_".$i) or die $!;
             my $j = 0;
 			while(my $fasta = $seqio_global->next_seq())
 			{
@@ -253,7 +268,7 @@ sub blastUnknowns {
    		for (my $i = 1; $i <= $threads; $i++) 
    		{
      		print "spawning thread $i\n";
-     		my $q = "$global_tmp_fasta_$i";
+     		my $q = $global_tmp_fasta."_".$i;
      		threads->new(\&worker, $q, $i);
    		}
             
@@ -271,11 +286,22 @@ sub blastUnknowns {
     	my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'uniref'} -o $global_tmp_fasta.$blast_program -m 8";
     	`$cmd`;
     }
-    
+}
+sub splitBlastResults {
+
     # now split them across multiple folders...
     my $current_dir_name = "__DOOF";
     my $current_file_handle;
-    open my $blast_results, "<", "$global_tmp_fasta.$blast_program" or die $!;
+    my $blast_results;
+    
+    if ($options->{'input'})
+    {
+    open $blast_results, "<", $options->{'input'} or die $!;
+    }
+    else
+    {
+    	open $blast_results, "<", "$global_tmp_fasta.$blast_program" or die $!;
+    }
     while(<$blast_results>)
     {
         # split the line, we need to know where to put this guy
@@ -318,20 +344,23 @@ sub annotate {
     # first do the call out
     foreach my $current_folder (keys %global_tmp_folders)
     {
+        
         # get the blast results:
         my @blast_files = ();
         if (-d $current_folder) {
             opendir(INDIR, $current_folder)
             or die "Failed to read from directory $current_folder:$!\n";
-            @blast_files = grep /\.[t]blast[pnx]$/, readdir (INDIR);
+            @blast_files = grep /\.$blast_program$/, readdir (INDIR);
             closedir (INDIR);
         }
-
         next if($#blast_files == -1);
-
+		if (scalar @blast_files == 0)
+		{
+			warn "hmm... this is strange...\nthere dosn't seem to be any blast output files in:\n$current_folder\n";
+		}
         # parse the blast results and report the GO predictions
         &generateAnnotations($current_folder, @blast_files);
-
+		
         # insert these new values into the GFF3 file
         &recombineGff3("$current_folder/combined.gff3", "$current_folder/annotated.gff3");
 
@@ -380,7 +409,8 @@ sub cleanTmps {
     {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
-    	`rm $global_tmp_fasta_$i $global_tmp_fasta.$i.$blast_program`;
+    	my $global_fasta_chunk = $global_tmp_fasta."_".$i;
+    	`rm $global_fasta_chunk $global_tmp_fasta.$i.$blast_program`;
     	}
     }
     
@@ -514,7 +544,10 @@ sub createFlatFile
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "evalue|e:s","blast_prg|p:s", "flatfile|f:+", "threads|t:s");
+    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", 
+    						 "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "input|i:s",
+    						 "evalue|e:s","blast_prg|p:s", "flatfile|f:+", "threads|t:s",
+    						 "one|1+","two|2+","three|3+","four|4+","five|5+");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -617,6 +650,7 @@ __DATA__
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
+      
       [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
