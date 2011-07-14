@@ -45,7 +45,7 @@ while(my $seqobj = $fasta->next_seq())
 	}
 	else
 	{
-		warn "there are no features for $seqobj->primary_id\n";
+		warn "there are no features for ",$seqobj->primary_id, "\n";
 	}
 }
 exit;
