@@ -593,10 +593,26 @@ sub createFlatFile
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "keep|k+", "contigs|c:s", 
-    						 "u2a|a:s", "uniref|u:s", "out|o:s", "blastx|x:+", "input|i:s",
-    						 "evalue|e:s","blast_prg|p:s", "flatfile|f:+", "threads|t:s",
-    						 "one|1+","two|2+","three|3+","four|4+","five|5+");
+    my @standard_options = (
+         "help|h+",
+         "gffs|g:s",
+         "keep|k+",
+         "contigs|c:s",
+         "u2a|a:s",
+         "uniref|u:s",
+         "out|o:s",
+         "blastx|x:+",
+         "input|i:s",
+         "evalue|e:s",
+         "blast_prg|p:s",
+         "flatfile|f:+",
+         "threads|t:s",
+         "one|1+",
+         "two|2+",
+         "three|3+",
+         "four|4+",
+         "five|5+",
+    );
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -699,7 +715,7 @@ __DATA__
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
-      
+     
       [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
@@ -707,6 +723,11 @@ __DATA__
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
       [-blastx -x]                 Keep only the blastx file (overrides -k option)
+      [-one]                       Skip step 1 of Mannotator
+      [-two]                       Skip step 2 of Mannotator
+      [-three]                     Skip step 3 of Mannotator
+      [-four]                      Skip step 4 of Mannotator
+      [-five]                      Skip step 5 of Mannotator
       [-help -h]                   Displays basic usage information
          
 =cut
