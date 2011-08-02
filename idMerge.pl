@@ -31,6 +31,7 @@ use warnings;
 use Getopt::Long;
 
 #CPAN modules
+use URI::Escape;
 
 #locally-written modules
 
@@ -49,6 +50,7 @@ my $options = checkParams();
 # CODE HERE
 ######################################################################
 my $global_outfile_name = "ANN_mappings.txt";
+my $esc = ',;='; # characters to escape in GFF tags or values
 if(exists $options->{'o'})
 {
     $global_outfile_name = $options->{'o'};
@@ -135,10 +137,10 @@ while(<$KEGGE_fh>)
     my @data = split /\t/, $_;
     if(!exists $global_KEGG_k_hash{$data[0]})
     {
-        $global_KEGG_e_hash{$data[0]} = ";EC_number=$data[1]";
+        $global_KEGG_e_hash{$data[0]} = ";EC_number=".escape_uri($data[1], $esc);
         if (defined $data[2])
         {
-        $global_KEGG_e_hash{$data[0]} .= ";product=$data[2]";	
+        $global_KEGG_e_hash{$data[0]} .= ";product=".escape_uri($data[2], $esc);
         }
     }
 }
@@ -198,11 +200,11 @@ while(<$Go_fh>)
     my $out_string;
     if (!exists $global_Go2U_hash{$data[6]})
     {
-    	$global_Go2U_hash{$data[6]} = ";db_xref=$data[3]";
+    	$global_Go2U_hash{$data[6]} = ";db_xref=".escape_uri($data[3], $esc);
     }
     else
     {
-    	$global_Go2U_hash{$data[6]} .=";db_xref=$data[3]"; 
+    	$global_Go2U_hash{$data[6]} .=";db_xref=".escape_uri($data[3], $esc);
     }
 }
 close $Go_fh;
@@ -215,16 +217,16 @@ foreach my $UPID (keys %global_seenUP_hash)
     my $found_one = 0;
     
     # UPID
-    my $out_string = "$UPID^;db_xref=Uniprot:$UPID";
+    my $out_string = "$UPID^;db_xref=Uniprot:".uri_escape($UPID, $esc);
     
     # cog
     if(exists $global_UPN_hash{$UPID})
     {
         $found_one = 1;
-        $out_string .= ";Ontology_term=COG_ID:".$global_UPN_hash{$UPID};
+        $out_string .= ";Ontology_term=COG_ID:".uri_escape($global_UPN_hash{$UPID}, $esc);
         if(exists $global_COG2Txt_hash{$global_UPN_hash{$UPID}})
         {
-            $out_string .= ";note=COG_DESC:".$global_COG2Txt_hash{$global_UPN_hash{$UPID}};
+            $out_string .= ";note=COG_DESC:".uri_escape($global_COG2Txt_hash{$global_UPN_hash{$UPID}}, $esc);
         }
     }
     
@@ -232,23 +234,24 @@ foreach my $UPID (keys %global_seenUP_hash)
     if(exists $global_U2K_hash{$UPID})
     {
         $found_one = 1;
-        $out_string .= ";Ontology_term=KEGG_ID:".$global_U2K_hash{$UPID};
+        $out_string .= ";Ontology_term=KEGG_ID:".uri_escape($global_U2K_hash{$UPID}, $esc);
         
         # KEGG pathway ID
         if(exists $global_KEGG_p_hash{$global_U2K_hash{$UPID}})
         {
-            $out_string .= ";Ontology_term=KEGG_PATHWAY:".$global_KEGG_p_hash{$global_U2K_hash{$UPID}};
+            $out_string .= ";Ontology_term=KEGG_PATHWAY:".uri_escape($global_KEGG_p_hash{$global_U2K_hash{$UPID}}, $esc);
         }
         
         # KEGG ko ID
         if(exists $global_KEGG_k_hash{$global_U2K_hash{$UPID}})
         {
             my $ko_ID = $global_KEGG_k_hash{$global_U2K_hash{$UPID}};
-            $out_string .= ";Ontology_term=KEGG_ONTOLOGY:$ko_ID";
+            $out_string .= ";Ontology_term=KEGG_ONTOLOGY:".uri_escape($ko_ID, $esc);
             
             # KEGG enzyme
             if(exists $global_KEGG_e_hash{$ko_ID})
             {
+                # Content of %global_KEGG_e_hash is already escaped
                 $out_string .= $global_KEGG_e_hash{$ko_ID};
             }
         }
@@ -258,6 +261,7 @@ foreach my $UPID (keys %global_seenUP_hash)
     if (exists $global_Go2U_hash{$UPID})
     {
     	$found_one = 1;
+        # Content of %global_Go2U_hash already escaped
     	$out_string .= $global_Go2U_hash{$UPID};
     }
     
@@ -358,7 +362,7 @@ __DATA__
         -Kp   KEGG_pathways_file    KEGG entry ID to pathway ID [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
         -Kk   KEGG_ko_file          KEGG entry ID to KEGG Ontology ID [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
         -Cd   COG_text              Links descriptions to COG/NOG IDs [http://eggnog.embl.de/cgi_bin/show_download_page.pl]
-        -Go   GO2Uniprot_file       Links Uniprot proteins to their coresponding GO annotations
+        -Go   GO2Uniprot_file       Links Uniprot proteins to their corresponding GO annotations
         
         [-o   OUTFILE]              File to write mappings to. [Default ANN_mappings.txt]
         [-help -h]                  Displays basic usage information
