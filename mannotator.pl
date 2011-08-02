@@ -484,10 +484,58 @@ sub generateAnnotations() {
                     }
                 }
             }
-            $global_annotations_hash{$result->query_name} = $tmp_ann;
+            $global_annotations_hash{$result->query_name} = gff_escape_chars($tmp_ann);
         }
     }    
 }
+
+
+sub gff_escape_chars {
+    # GFF3 basics:
+    #    = separates tag from values: tag1=value
+    #    ; separates tag and value pairs: tag1=value1;tag2=value2
+    #    , separates multiple values that a tag can have: tag2=value2,value3
+    # As a consequence =;, need to be escaped in hexadecimal if their occur in
+    # a tag or value:
+    #    ; (semicolon) - %3B
+    #    = (equals) - %3D
+    #    , (comma) - %2C
+    # Here, we deal with the ANN mapping file, which uses unescaped commas in
+    # tag values, e.g.:
+    #    A8MM54^;Ontology_term=KEGG_ENZYME:ftsX, cell division transport permease
+    # To get valid GFF3 files, we need to escape commas.
+    # Getting rid of the commas is easier and more fun!
+    my $ann_string = shift;
+    $ann_string =~ s/,/ /g;
+    return $ann_string;
+}
+
+
+sub gff_collapse_tags {
+    # Collapse multiple identical tags into a single one, e.g. transform:
+    #    tag2=value2;tag2=value3
+    # into:
+    #    tag2=value2,value3
+    my $string = shift;
+    my @pairs = split ';', $string;
+    my %tag_hash;
+    $string = '';
+    for my $pair (@pairs) {
+       my ($tag, $value) = split '=', $pair;
+       if ( (defined $value) and ($value !~ m/^\s*$/) ) {
+          if (exists $tag_hash{$tag}) {
+             $tag_hash{$tag} .= ',';
+          }
+          $tag_hash{$tag} .= $value;
+       }
+    }
+    while ( my ($tag, $values) = each %tag_hash ) {
+       $string .= ';' if $string;
+       $string .= "$tag=$values";
+    }
+    return $string;
+}
+
 
 sub recombineGff3() {
     #-----
@@ -514,6 +562,7 @@ sub recombineGff3() {
             {
                 $gff_bits[8] =~ s/: hypothetical protein//;
                 $gff_bits[8] = $gff_bits[8].$global_annotations_hash{$feat_key};
+                $gff_bits[8] = gff_collapse_tags($gff_bits[8]);
                 print $ann_fh (join "\t", @gff_bits)."\n";
             }
             else
