@@ -48,7 +48,7 @@ The pipeline consists of one data file, two perl scripts which do the work and o
    4.
       Mix all the information together and return a single gff3 file with your annotations.
 
-To run the mannotator (takes a while, perhaps you should use nohup or screen). The order of the GFF files is IMPORTANT. You should put thr RAST file first, followed by the prodigal file.
+To run the mannotator (takes a while, perhaps you should use nohup or screen). The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
 
 $ mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -uniref|u LOCATION -u2a|a FILE
 
