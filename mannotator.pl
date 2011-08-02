@@ -56,7 +56,6 @@ my %global_annotations_hash = ();
 my %global_tmp_folders = ();
 my $global_tmp_fasta = "mannotator_unknowns_".time.".fasta";
 
-
 my $global_output_file = "mannotatored.gff3";
 if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
 
@@ -335,7 +334,8 @@ sub annotate {
     #-----
     # call out to blast2ann.pl
     #
-    
+    my ($seq_embed) = shift;
+
     # load the databases
     &loadU2A($options->{'u2a'});
     
@@ -389,7 +389,22 @@ sub annotate {
             close $this_gff3;
         }
     }
+
+    # finally, embed the FASTA sequences in the GFF file
+    if (exists $options->{'seq_embed'}) {
+        print $out_fh "##FASTA\n";
+        my $file = $options->{'contigs'};
+        my $in  = Bio::SeqIO->new( -file => $file  , -format => 'fasta' ); 
+        my $out = Bio::SeqIO->new( -fh   => $out_fh, -format => 'fasta' );
+        while (my $seq = $in->next_seq) {
+            $out->write_seq($seq);
+        }
+        $in->close;
+        $out->close;
+    }
+
     close $out_fh;
+
 }
 
 sub cleanTmps {
@@ -612,6 +627,7 @@ sub checkParams {
          "three|3+",
          "four|4+",
          "five|5+",
+         "seq_embed|s",
     );
     my %options;
 
@@ -715,7 +731,8 @@ __DATA__
       -contigs -c FILE             Contigs to be annotated...
       -uniref -u LOCATION          Location of UniRef blast database
       -u2a -a FILE                 UniRef to annotations file
-     
+
+      [-seq_embed -s]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
       [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
