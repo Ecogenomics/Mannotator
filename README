@@ -10,15 +10,29 @@ What is it?
 
 With such an exciting name, you may be forgiven for thinking that the mannotator is something other than a microbial sequence annotator, BUT, you'd be wrong… If you have a microbial assembly, then you can use this tool to annotate your contigs. This tool is not perfect, nor complete. Any and all suggestions are welcome!
 
+
+------------------------------------------------
+What to do before I can use it?
+------------------------------------------------
+
+Step 1: Install Mannotator's dependencies. You'll need Perl and the following Perl modules:
+   * Bioperl
+   * URI::Escape
+
+Step 2: Prepare database files to run your annotations with 
+
+Step 2a: Download a protein database, i.e. Uniref100 (http://www.ebi.ac.uk/uniprot/database/download.html)
+
+Step 2b: Format it with the BLAST formatdb utility
+
+Step 2b: Use Mannotator's idMergeUniref.pl to produce a file of ID mappings, i.e. ANN_mappings.txt
+
+
 ------------------------------------------------
 How do I use it?
 ------------------------------------------------
 
-NOTE:These instructions are made for the install on our Eury server. They can easily be modified to work elsewhere…
-
-Step 0: Install dependencies. You'll need Perl and the following Perl modules:
-   * Bioperl
-   * URI::Escape
+NOTE: These instructions are made for the install on our Eury server. They can easily be modified to work elsewhere though…
 
 Step 1: Ensure all you contig names (fasta IDs) are computer friendly. Avoid the following characters in fasta headers (always a good idea anyway…). Also, make sure that all the fasta headers are unique!
 
@@ -84,7 +98,7 @@ The ANN_file is a special text file which links Uniref90 IDs to KEGG and COG/NOG
 
 /Volumes/Biodata/ANN_mappings/ANN_mappings.txt
 
-You can update this file with newer annotations by running the script idMerge.pl, also found in the mannotator directory on Eury.
+You can update this file with newer annotations by running the script idMergeUniref.pl, also found in the mannotator directory on Eury.
 
 The format of the ANN_mappings file is as follows:
 

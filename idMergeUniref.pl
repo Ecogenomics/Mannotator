@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-#    idMerge.pl
+#    idMergeUniref.pl
 #    
 #    Merge UniProt, KEGG, COG-eggNOG ids and info into one big kludge
 #
@@ -324,7 +324,7 @@ __DATA__
 
 =head1 NAME
 
-    idMerge.pl
+    idMergeUniref.pl
 
 =head1 COPYRIGHT
 
@@ -354,7 +354,7 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    idMerge.pl -Ku KEGG2Uniprot_file -Uc UniProt2Cog_file -Kp KEGG_pathways_file -Kk KEGG_ko_file -Ke KEGG2Enzyme_file -cD COG_text [-o OUTFILE] [-help|h]
+    idMergeUniref.pl -Ku KEGG2Uniprot_file -Uc UniProt2Cog_file -Kp KEGG_pathways_file -Kk KEGG_ko_file -Ke KEGG2Enzyme_file -cD COG_text [-o OUTFILE] [-help|h]
 
         -Uc   UniProt2Cog_file      UniProt 2 COG File [http://eggnog.embl.de/cgi_bin/show_download_page.pl]
         -Ku   KEGG2Uniprot file     KEGG genes to Uniprot accessions [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
@@ -368,4 +368,3 @@ __DATA__
         [-help -h]                  Displays basic usage information
          
 =cut
-
