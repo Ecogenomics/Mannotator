@@ -14,7 +14,11 @@ With such an exciting name, you may be forgiven for thinking that the mannotator
 How do I use it?
 ------------------------------------------------
 
-NOTE:These instructions are made for the install on Eury. They can easily be modified to work elsewhere…
+NOTE:These instructions are made for the install on our Eury server. They can easily be modified to work elsewhere…
+
+Step 0: Install dependencies. You'll need Perl and the following Perl modules:
+   * Bioperl
+   * URI::Escape
 
 Step 1: Ensure all you contig names (fasta IDs) are computer friendly. Avoid the following characters in fasta headers (always a good idea anyway…). Also, make sure that all the fasta headers are unique!
 
