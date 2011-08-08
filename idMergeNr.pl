@@ -83,6 +83,7 @@ use File::Spec::Functions;
 use Getopt::Euclid;
 use Bio::DB::Taxonomy;
 use Bio::SeqIO;
+use URI::Escape;
 use DB_File;
 idMergeNr($ARGV{-Fa}, $ARGV{-No}, $ARGV{-Na}, $ARGV{-Gt}, $ARGV{-o});
 exit;
@@ -101,62 +102,51 @@ sub idMergeNr {
    my ($gitaxid_db, $gitaxid_db_file) = create_gitaxid_db($gitaxid);
    print "done\n";
    
-   ###
-   #use Data::Dumper;
-   #print "gi2taxid_db_file = $gitaxid_db_file\n";
-   #print "gitaxid_db = ".Dumper($gitaxid_db);
-   ###
-
    # Reading sequences
    print "Reading sequences file and writing mappings...\n";
    my $in  = Bio::SeqIO->new( -file => "<$fasta", -format => 'fasta' );
    open my $outmap, '>', $outmappings or die "Error: Could not write file '$outmappings'\n$1\n";
-
-   ####
-   #my $outfasta    = 'outfasta.faa';
-   #my $outseq = Bio::SeqIO->new( -file => ">$outfasta", -format => 'fasta', -flush => 0 );
-   ####
-
+   my $esc = ',;='; # characters to escape in GFF tags or values
+   my $rec_no = 0;
    while (my $seq = $in->next_seq) {
       # In nr, multiple identical protein sequences are merged and their defline
-      # is concatednated. Example of nr sequence defline:
-      # >gi|66816243|ref|XP_642131.1| hypothetical protein DDB_G0277827 [Dictyostelium discoideum AX4]^Agi|1705556|sp|P54670.1|CAF1_DICDI RecName: Full=Calfumirin-1; Short=CAF-1^Agi|793761|dbj|BAA06266.1| calfumirin-1 [Dictyostelium discoideum]^Agi|60470106|gb|EAL68086.1| hypothetical protein DDB_G0277827 [Dictyostelium discoideum AX4]
-      my $id   = $seq->id;
-      my ($gi) = ( $id =~ m/gi\|(\d+)/ );
-      my ($desc) = split /\001/, $seq->desc;
-      my $gff_blurb = "Name=$desc;Dbxref=NCBI_gi:$gi;";
+      # is concatenated. Example of nr sequence defline:
+      # >gi|66816243|ref|XP_642131.1| hypothetical protein DDB_G0277827 [Dictyostelium discoideum AX4]^Agi|1705556|sp|P54670.1|CAF1_DICDI RecName: Full=Calfumirin-1; Short=CAF-1^Agi|793761|dbj|BAA06266.1| calfumirin-1 [Dictyostelium discoideum]
+      $rec_no++;
+      print "   $rec_no\n" if ($rec_no % 1E5 == 0);
+      my $id        = $seq->id;
+      my ($gi)      = ( $id =~ m/gi\|(\d+)/ );
+      my ($desc)    = split /\001/, $seq->desc;
+      $desc         =~ s/ \[.+\]//g;
+      my $gff_blurb = "Name=".uri_escape($desc, $esc).";Dbxref=NCBI_gi:$gi;";
       my $taxid;
       if (defined $gi) {
          $taxid = $$gitaxid_db{$gi};
          if (not defined $taxid) {
             warn "Warning: Could not find the taxid of GI $gi\n";
+         } else {
+            $gff_blurb .= "Dbxref=taxon:$taxid;";
          }
-         $gff_blurb .= "Dbxref=taxon:$taxid;";
       }
       my $taxo_str;
       if (defined $taxid) {
          my $taxon = $tax_db->get_taxon( -taxonid => $taxid );
          $taxo_str = $taxon->node_name;
-         while ( my $taxon = $taxon->ancestor ) {
+         while ( $taxon = $taxon->ancestor ) {
             $taxo_str = $taxon->node_name . '/' . $taxo_str;
          }
-         $gff_blurb .= "Note=$taxo_str;";
+         $gff_blurb .= "Note=".uri_escape($taxo_str, $esc).";";
       }
 
       $gff_blurb = gff_collapse_tags($gff_blurb);     
       print $outmap "$id^$gff_blurb\n";
 
-      ####
-      #$outseq->write_seq($seq);
-      ####
    }
    $in->close;
-   $outseq->close;
    close $outmap;
    ###delete_gitaxid_db($gitaxid_db, $gitaxid_db_file);
    ###$outseq->close;
    ### delete taxonomy_db
-
 
    print "done\n";
 
@@ -187,8 +177,11 @@ sub create_taxonomy_db {
 sub create_gitaxid_db {
    my ($gitaxid) = @_;
    my ($gitaxid_db, $gitaxid_db_file) = tie_hash();
+   my $rec_no = 0;
    open my $in, '<', $gitaxid or die "Error: Could not read file '$gitaxid'\n$!\n";
    while ( my $line = <$in> ) {
+      $rec_no++;
+      print "   $rec_no\n" if ($rec_no % 1E5 == 0);
       chomp $line;
       my ($gi, $taxid) = split /\t/, $line;
       $$gitaxid_db{$gi} = $taxid;
