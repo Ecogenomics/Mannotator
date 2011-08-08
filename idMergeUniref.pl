@@ -49,7 +49,7 @@ my $options = checkParams();
 ######################################################################
 # CODE HERE
 ######################################################################
-my $global_outfile_name = "ANN_mappings.txt";
+my $global_outfile_name = "Uniref_mappings.txt";
 my $esc = ',;='; # characters to escape in GFF tags or values
 if(exists $options->{'o'})
 {
@@ -137,10 +137,10 @@ while(<$KEGGE_fh>)
     my @data = split /\t/, $_;
     if(!exists $global_KEGG_k_hash{$data[0]})
     {
-        $global_KEGG_e_hash{$data[0]} = ";EC_number=".escape_uri($data[1], $esc);
+        $global_KEGG_e_hash{$data[0]} = ";EC_number=".uri_escape($data[1], $esc);
         if (defined $data[2])
         {
-        $global_KEGG_e_hash{$data[0]} .= ";product=".escape_uri($data[2], $esc);
+        $global_KEGG_e_hash{$data[0]} .= ";product=".uri_escape($data[2], $esc);
         }
     }
 }
@@ -200,11 +200,11 @@ while(<$Go_fh>)
     my $out_string;
     if (!exists $global_Go2U_hash{$data[6]})
     {
-    	$global_Go2U_hash{$data[6]} = ";db_xref=".escape_uri($data[3], $esc);
+    	$global_Go2U_hash{$data[6]} = ";db_xref=".uri_escape($data[3], $esc);
     }
     else
     {
-    	$global_Go2U_hash{$data[6]} .=";db_xref=".escape_uri($data[3], $esc);
+    	$global_Go2U_hash{$data[6]} .=";db_xref=".uri_escape($data[3], $esc);
     }
 }
 close $Go_fh;
@@ -364,7 +364,7 @@ __DATA__
         -Cd   COG_text              Links descriptions to COG/NOG IDs [http://eggnog.embl.de/cgi_bin/show_download_page.pl]
         -Go   GO2Uniprot_file       Links Uniprot proteins to their corresponding GO annotations
         
-        [-o   OUTFILE]              File to write mappings to. [Default ANN_mappings.txt]
+        [-o   OUTFILE]              File to write mappings to. [Default Uniref_mappings.txt]
         [-help -h]                  Displays basic usage information
          
 =cut
