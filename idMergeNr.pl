@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Prepare the NCBI nr proteic database (non-redundant) for use in Mannotator
 by merging GI number, sequence description and taxonomy into a single file.
+Preparing these files takes a while (1-2 days)!
 
 CAVEAT: The nr database defline (FASTA header) for each sequence is the
 concatenation of the headers of multiple identical protein sequences. Here,
@@ -82,7 +83,6 @@ use Cwd;
 use File::Spec::Functions;
 use Getopt::Euclid;
 use Bio::DB::Taxonomy;
-use Bio::SeqIO;
 use URI::Escape;
 use DB_File;
 idMergeNr($ARGV{-Fa}, $ARGV{-No}, $ARGV{-Na}, $ARGV{-Gt}, $ARGV{-o});
@@ -101,61 +101,16 @@ sub idMergeNr {
    print "Reading gi2taxid file...\n";
    my ($gitaxid_db, $gitaxid_db_file) = create_gitaxid_db($gitaxid);
    print "done\n";
-   
+
    # Reading sequences
    print "Reading sequences file and writing mappings...\n";
-   my $in  = Bio::SeqIO->new( -file => "<$fasta", -format => 'fasta' );
-   open my $outmap, '>', $outmappings or die "Error: Could not write file '$outmappings'\n$1\n";
-   my $esc = ',;='; # characters to escape in GFF tags or values
-   my $rec_no = 0;
-   while (my $seq = $in->next_seq) {
-      # In nr, multiple identical protein sequences are merged and their defline
-      # is concatenated. Example of nr sequence defline:
-      # >gi|66816243|ref|XP_642131.1| hypothetical protein DDB_G0277827 [Dictyostelium discoideum AX4]^Agi|1705556|sp|P54670.1|CAF1_DICDI RecName: Full=Calfumirin-1; Short=CAF-1^Agi|793761|dbj|BAA06266.1| calfumirin-1 [Dictyostelium discoideum]
-      $rec_no++;
-      print "   $rec_no\n" if ($rec_no % 1E5 == 0);
-      my $id        = $seq->id;
-      my ($gi)      = ( $id =~ m/gi\|(\d+)/ );
-      my ($desc)    = split /\001/, $seq->desc;
-      $desc         =~ s/ \[.+\]//g;
-      my $gff_blurb = "Name=".uri_escape($desc, $esc).";Dbxref=NCBI_gi:$gi;";
-      my $taxid;
-      if (defined $gi) {
-         $taxid = $$gitaxid_db{$gi};
-         if (not defined $taxid) {
-            warn "Warning: Could not find the taxid of GI $gi\n";
-         } else {
-            $gff_blurb .= "Dbxref=taxon:$taxid;";
-         }
-      }
-      my $taxo_str;
-      if (defined $taxid) {
-         my $taxon = $tax_db->get_taxon( -taxonid => $taxid );
-         $taxo_str = $taxon->node_name;
-         while ( $taxon = $taxon->ancestor ) {
-            $taxo_str = $taxon->node_name . '/' . $taxo_str;
-         }
-         $gff_blurb .= "Note=".uri_escape($taxo_str, $esc).";";
-      }
-
-      $gff_blurb = gff_collapse_tags($gff_blurb);     
-      print $outmap "$id^$gff_blurb\n";
-
-   }
-   $in->close;
-   close $outmap;
-   ###delete_gitaxid_db($gitaxid_db, $gitaxid_db_file);
-   ###$outseq->close;
-   ### delete taxonomy_db
-
+   process_sequences($fasta, $outmappings, $gitaxid_db, $tax_db);
    print "done\n";
 
-   # Now format database for BLAST use
-   # ...
-   # ..
-   # .
+   print "Mapping file is ready at $outmappings\n\n";
 
-   print "Mapping file is ready at $outmappings\n";
+   print "You can now delete the following database files unless you plan on running $0 again:\n";
+   print "  id2names, names2id, nodes, parents, gi2taxid\n\n";
  
    return 1;
 }
@@ -176,17 +131,21 @@ sub create_taxonomy_db {
 
 sub create_gitaxid_db {
    my ($gitaxid) = @_;
-   my ($gitaxid_db, $gitaxid_db_file) = tie_hash();
-   my $rec_no = 0;
-   open my $in, '<', $gitaxid or die "Error: Could not read file '$gitaxid'\n$!\n";
-   while ( my $line = <$in> ) {
-      $rec_no++;
-      print "   $rec_no\n" if ($rec_no % 1E5 == 0);
-      chomp $line;
-      my ($gi, $taxid) = split /\t/, $line;
-      $$gitaxid_db{$gi} = $taxid;
+   my $name = 'gi2taxid';
+   my ($gitaxid_db, $gitaxid_db_file, $gitaxid_db_exists) = tie_hash( getcwd, $name);
+   if (not $gitaxid_db_exists) {
+      # Populate tied hash with gi2taxid entries
+      my $rec_no = 0;
+      open my $in, '<', $gitaxid or die "Error: Could not read file '$gitaxid'\n$!\n";
+      while ( my $line = <$in> ) {
+         $rec_no++;
+         print "   $rec_no\n" if ($rec_no % 1E5 == 0);
+         chomp $line;
+         my ($gi, $taxid) = split /\t/, $line;
+         $$gitaxid_db{$gi} = $taxid;
+      }
+      close $in;
    }
-   close $in;
    return $gitaxid_db, $gitaxid_db_file;
 }
 
@@ -200,26 +159,31 @@ sub delete_gitaxid_db {
 
 sub tie_hash {
    # Create a single-level hash tied to a Berkeley database file
-   # Input:  ref of hash or array to tie
-   #         directory where to put database file (optional)
+   # Input:  directory where to put database file (optional)
    #         prefix for database file name (optional)
    # Output: full path of database file
    my ($dir, $file) = @_;
    my $hashref = {};
    if (not defined $dir) {
-     $dir = getcwd;
+      $dir = getcwd;
    }
    if (not defined $file) {
-     $file = File::Temp->new(TEMPLATE => 'temp_XXXXXXXXX', SUFFIX => '.db')->filename;
+      $file = File::Temp->new(TEMPLATE => 'temp_XXXXXXXXX', SUFFIX => '.db')->filename;
    }
    $file = catfile($dir, $file);
+   my $exists = 0;
    if ( -e $file ) {
-     unlink $file or die "Error: Could not delete pre-existing tied variable file '$file'\n$!\n";
+      # Re-use a previously created database
+      $exists = 1;
+      my $err_msg = "Error: Could not read tied hash file '$file'\n"; 
+      tie %$hashref, 'DB_File', $file, O_RDONLY, 0644, $DB_BTREE or die $err_msg."$!\n";
+   } else { 
+      # Create a BerkeleyDB Btree database. Btrees are fast to build and fast to
+      # search. Also the keys are ordered!
+      my $err_msg = "Error: Could not write tied hash file '$file'\n";
+      tie %$hashref, 'DB_File', $file, O_CREAT|O_RDWR, 0644, $DB_BTREE or die $err_msg."$!\n";
    }
-   # Btrees are fast to build and fast to search. Also the keys are ordered!
-   my $err_msg = "Error: Could not write tied hash file '$file'\n";
-   tie %$hashref, 'DB_File', $file, O_CREAT|O_RDWR, 0644, $DB_BTREE or die $err_msg."$!\n";
-   return ($hashref, $file);
+   return $hashref, $file, $exists;
 }
 
 
@@ -268,3 +232,37 @@ sub gff_collapse_tags {
     return $string;
 }
 
+
+sub process_sequences {
+   my ($fasta, $outmappings, $gitaxid_db, $tax_db) = @_;
+   open my $in, '<', $fasta or die "Error: Could not read file '$fasta'\n$1\n";
+   open my $outmap, '>', $outmappings or die "Error: Could not write file '$outmappings'\n$1\n";
+   my $esc = ',;='; # characters to escape in GFF tags or values
+   my $rec_no = 0;
+   while (my $line = <$in>) {
+      # Only read sequence deflines
+      next unless $line =~ m/^>/;
+      # In nr, multiple identical protein sequences are merged and their defline
+      # is concatenated. Example of nr sequence defline:
+      # >gi|66816243|ref|XP_642131.1| hypothetical protein DDB_G0277827 [Dictyostelium discoideum AX4]^Agi|1705556|sp|P54670.1|CAF1_DICDI RecName: Full=Calfumirin-1; Short=CAF-1^Agi|793761|dbj|BAA06266.1| calfumirin-1 [Dictyostelium discoideum]
+      $rec_no++;
+      print "   $rec_no\n" if ($rec_no % 1E5 == 0);
+      my ($id, $gi, $desc) = ( $line =~ m/^>(gi\|(\d+)\S+)\s+(.*?)(\[|\001)?/ );
+      my $gff_blurb = "Name=".uri_escape($desc, $esc).";Dbxref=NCBI_gi:$gi;";
+      my $taxid = $$gitaxid_db{$gi};
+      if (defined $taxid) { # some sequences do not have a taxid
+         my $taxon = $tax_db->get_taxon( -taxonid => $taxid );
+         if ($taxon) { # some GIs have a taxon ID of zero, i.e. unknown source organism
+            my $taxo_str = $taxon->node_name;
+            while ( $taxon = $taxon->ancestor ) {
+               $taxo_str = $taxon->node_name . '/' . $taxo_str;
+            }
+            $gff_blurb .= "Dbxref=taxon:$taxid;Note=".uri_escape($taxo_str, $esc).";";
+         }
+      }
+      print $outmap "$id^".gff_collapse_tags($gff_blurb)."\n";
+   }
+   close $in;
+   close $outmap;
+   return 1;
+}
