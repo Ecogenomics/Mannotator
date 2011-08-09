@@ -96,11 +96,11 @@ print "Step 2: Combining Gffs\n";
 combineGffs();
 }
 #
-# Step 3. Blast the unknowns against UniRef
+# Step 3. Blast the unknowns against UniRef or Nr proteic database
 #
 unless ($options->{'three'})
 {
-print "Step 3: Blasting unknown ORFs against UniRef... This could take some time. Perhaps you need a coffee?\n";
+print "Step 3: Blasting unknown ORFs against protein database... This could take some time. Perhaps you need a coffee?\n";
 blastUnknowns();
 }
 unless ($options->{'four'})
@@ -234,14 +234,14 @@ sub combineGffs {
 
 sub worker {
 	my ($chunk, $n) = @_;
-	my $cmd = "blastall -p $blast_program -i $chunk -d $options->{'uniref'} -o $global_tmp_fasta.$n.$blast_program -m 8";
+	my $cmd = "blastall -p $blast_program -i $chunk -d $options->{'protdb'} -o $global_tmp_fasta.$n.$blast_program -m 8";
     `$cmd`;
 }
 
 
 sub blastUnknowns {
     #-----
-    # Blast unknowns against the UniRef90 DB
+    # Blast unknowns against the Uniref or Nr protein database
     #
     # first blast em'
     my $num_seq = `grep -c ">" $global_tmp_fasta`;
@@ -283,7 +283,7 @@ sub blastUnknowns {
     }
     else
     {
-    	my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'uniref'} -o $global_tmp_fasta.$blast_program -m 8";
+    	my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'protdb'} -o $global_tmp_fasta.$blast_program -m 8";
     	`$cmd`;
     }
 }
@@ -294,9 +294,9 @@ sub splitBlastResults {
     my $current_file_handle;
     my $blast_results;
     
-    if ($options->{'input'})
+    if ($options->{'sims'})
     {
-    open $blast_results, "<", $options->{'input'} or die $!;
+    open $blast_results, "<", $options->{'sims'} or die $!;
     }
     else
     {
@@ -338,7 +338,7 @@ sub annotate {
     my ($seq_embed) = shift;
 
     # load the databases
-    &loadU2A($options->{'u2a'});
+    &loadU2A($options->{'i2a'});
     
     my $counter = 0;
     my $big_counter = 0;
@@ -450,7 +450,7 @@ sub loadU2A() {
     
     my ($Uniprot2ANN_file) = @_;
     
-    print "Loading Uniref => Annotations file....";
+    print "Loading ID to annotations mapping file...";
     
     open my $U2A_fh, "<", $Uniprot2ANN_file or die "Cannot read from U2A file: $Uniprot2ANN_file:$!\n";
     while (<$U2A_fh>) {
@@ -459,7 +459,7 @@ sub loadU2A() {
         $global_U2A_hash{$data[0]} = $data[1];
     }
     close $U2A_fh;
-    print "done.  Loaded ".keys(%global_U2A_hash)." Uniprot 2 annotation refs\n";
+    print "done.  Loaded ".keys(%global_U2A_hash)." ID to annotations records\n";
 }
 
 sub generateAnnotations() {
@@ -614,11 +614,11 @@ sub checkParams {
          "gffs|g:s",
          "keep|k+",
          "contigs|c:s",
-         "u2a|a:s",
-         "uniref|u:s",
+         "i2a|i:s",
+         "protdb|p:s",
          "out|o:s",
          "blastx|x:+",
-         "input|i:s",
+         "sims|s:s",
          "evalue|e:s",
          "blast_prg|p:s",
          "flatfile|f:+",
@@ -656,16 +656,16 @@ sub checkParams {
         exec("pod2usage $0");
     }
 
-    if(!exists $options{'uniref'})
+    if(!exists $options{'protdb'})
     {
-        print "ERROR: You need to give me the location of the UniRef blast database to continue!\n";
+        print "ERROR: You need to give me the location of a proteic BLAST database (UniRef or Nr) to continue!\n";
         print "Perhaps, try this one (on EURY): /Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90_micro.fasta\n";
         exec("pod2usage $0");
     }
     
     if(!exists $options{'u2a'})
     {
-        print "ERROR: You need to give me the location of the Uniref to Annotations file!\n";
+        print "ERROR: You need to give me the location of the ID to annotations mapping file!\n";
         print "Perhaps, try this one (on EURY): /Volumes/Biodata/ANN_mappings/ANN_mappings.txt\n";
         exec("pod2usage $0");
     }
@@ -726,21 +726,22 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST TYPE -uniref|u LOCATION -u2a|a FILE
+    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
 
       -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
       -contigs -c FILE             Contigs to be annotated...
-      -uniref -u LOCATION          Location of UniRef blast database
-      -u2a -a FILE                 UniRef to annotations file
+      -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
+      -i2a -i FILE                 ID to annotations mapping :file
 
       [-seq_embed -s]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
       [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
-      [-blast_prg -p BLAST TYPE]   The type of blast to run [default: blastx]
+      [-blast_prg -b BLAST TYPE]   The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
       [-blastx -x]                 Keep only the blastx file (overrides -k option)
+      [-sims -s FILE]              Use BLAST similarities given in this file
       [-one]                       Skip step 1 of Mannotator
       [-two]                       Skip step 2 of Mannotator
       [-three]                     Skip step 3 of Mannotator
