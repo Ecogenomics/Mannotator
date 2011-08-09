@@ -251,26 +251,34 @@ sub blastUnknowns {
     	my $num_seq_per_file = int ($num_seq / $threads);
     	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
     	print "splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
-    	for (my $i = 1; $i <= $threads; $i++)
+    	my $i = 1;
+    	my $j = 0;
+    	while ($i < $threads)
     	{
     		# open a file to hold a chunk
-			open (CH, ">",$global_tmp_fasta."_".$i) or die $!;
-            my $j = 0;
-			while(my $fasta = $seqio_global->next_seq())
-			{
-                last if $j > $num_seq_per_file;
-                print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";	
-				$j++;
-			}
+		open (CH, ">",$global_tmp_fasta."_".$i) or die $!;
+		while(my $fasta = $seqio_global->next_seq())
+		{
+              last if $j > $num_seq_per_file;
+              print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";
+     		$j++;
+		}
             close CH;
+            $i++;
     	}
-    	
-   		for (my $i = 1; $i <= $threads; $i++) 
-   		{
-     		print "spawning thread $i\n";
-     		my $q = $global_tmp_fasta."_".$i;
-     		threads->new(\&worker, $q, $i);
-   		}
+    	open (CH, ">",$global_tmp_fasta."_".$i) or die $!;
+    	while(my $fasta = $seqio_global->next_seq())
+	{
+        print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";
+	}
+   	close CH;
+
+   	for (my $x = 1; $x <= $threads; $x++) 
+   	{
+     	print "spawning thread $i\n";
+     	my $q = $global_tmp_fasta."_".$i;
+     	threads->new(\&worker, $q, $i);
+   	}
             
         $_->join() for threads->list();
    		
@@ -663,7 +671,7 @@ sub checkParams {
         exec("pod2usage $0");
     }
     
-    if(!exists $options{'u2a'})
+    if(!exists $options{'i2a'})
     {
         print "ERROR: You need to give me the location of the ID to annotations mapping file!\n";
         print "Perhaps, try this one (on EURY): /Volumes/Biodata/ANN_mappings/ANN_mappings.txt\n";
