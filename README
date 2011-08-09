@@ -17,16 +17,18 @@ What to do before I can use it?
 
 Step 1: Install Mannotator's dependencies. You'll need Perl and the following Perl modules:
    * Bioperl
+   * Getopt::Euclid
    * URI::Escape
 
-Step 2: Prepare database files to run your annotations with 
+Step 2: Prepare database files to run your annotations with. Mannotator has support for EMBL Uniref/COG/KEGG and NCBI Nr/Taxonomy
 
-Step 2a: Download a protein database, i.e. Uniref100 (http://www.ebi.ac.uk/uniprot/database/download.html)
+Step 2a: Download your protein database of choice, i.e. Uniref100 (http://www.ebi.ac.uk/uniprot/database/download.html) or Nr (ftp://ftp.ncbi.nih.gov/../blast/db/FASTA/nr.gz)
 
-Step 2b: Format it with the BLAST formatdb utility
+Step 2b: Uncompress it and format it with the BLAST formatdb utility
 
-Step 2b: Use Mannotator's idMergeUniref.pl to produce a file of ID mappings, i.e. ANN_mappings.txt
+Step 2b: Use Mannotator's idMergeUniref.pl or idMergeNr.pl to produce a file of ID mappings, i.e. Uniref_mappings.txt or Nr_mappings.txt
 
+Now you are ready to annotate your sequence using Ze Mannotator
 
 ------------------------------------------------
 How do I use it?
@@ -47,28 +49,36 @@ space
 )
 &
 
-Step 2. Find ORFs in your sequences. Use prodigal (on eury) and the RAST server http://rast.nmpdr.org/
+Step 2. Submit your sequences for annotation on the RAST server at http://rast.nmpdr.org/. When it is over, export your annotations as a GFF file. The RAST annotation may last several days, so in the meantime, start step 3.
+
+Step 3. Find ORFs in your sequences using Prodigal (on eury)
 
 $ prodigal -i IN_FILE -o OUT_FILE.gff3 -f gff
 
-Step 3. Copy the resulting gff3 files and the multiple fasta file containing your contigs into a working directory.
+For metagenomic contigs, try:
 
-Step 4. Unleash the mannotator!
+$ prodigal -i IN_FILE -o OUT_FILE.gff3 -f gff -p meta
+
+Step 4. Copy the Prodigal and RAST gff3 files and the multiple fasta file containing your contigs into a working directory.
+
+Step 5. Unleash the mannotator!
 
 The pipeline consists of one data file, two perl scripts which do the work and one “outer” script which ties them together. Here is a quick rundown what is being done by the mannotator and how to run it. Read below to learn about what the scripts are doing.
 
    1.
       Combine multiple gff3 files into one and extract fasta sequences of un-annotated ORFs
    2.
-      Use Blastx and the Uniref90 DB to get best blast results for each fasta sequence
+      Use Blastx against the Uniref100 or Nr databases to get best similarity for each each ORF fasta sequence
    3.
-      Use the Uniref90 ID obtained in the previous step to assign KEGG and COG/NOG IDs to each of the un-annotated fasta files.
+      Use the Uniref obtained in the previous step to assign KEGG and COG/NOG IDs to each of the un-annotated fasta files. If you used Nr, then you get GI (genbank identifiers) which are used to look up the putative function and taxonomy of the proteic sequence.
    4.
-      Mix all the information together and return a single gff3 file with your annotations.
+      Mix all the information together and return a single gff3 file called 'mannotatored.gff3' that contains all your annotations. You can visualise the annotations contained in this file using Artemis or GBrowse.
 
-To run the mannotator (takes a while, perhaps you should use nohup or screen). The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
+Running the Mannotator will take a while, so perhaps you should use nohup or screen. The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
 
-$ mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -uniref|u LOCATION -u2a|a FILE
+$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb uniref -i2a Uniref_mappings.txt -seq_embed
+
+$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb nr -i2a Nr_mappings.txt -seq_embed
 
 Where the uniref file can be found (on Eury) at:
 
