@@ -22,7 +22,7 @@ Step 1: Install Mannotator's dependencies. You'll need Perl and the following Pe
 
 Step 2: Prepare database files to run your annotations with. Mannotator has support for EMBL Uniref/COG/KEGG and NCBI Nr/Taxonomy
 
-Step 2a: Download your protein database of choice, i.e. Uniref100 (http://www.ebi.ac.uk/uniprot/database/download.html) or Nr (ftp://ftp.ncbi.nih.gov/../blast/db/FASTA/nr.gz)
+Step 2a: Download your protein database of choice, i.e. Uniref90 (http://www.ebi.ac.uk/uniprot/database/download.html) or Nr (ftp://ftp.ncbi.nih.gov/../blast/db/FASTA/nr.gz)
 
 Step 2b: Uncompress it and format it with the BLAST formatdb utility
 
@@ -68,7 +68,7 @@ The pipeline consists of one data file, two perl scripts which do the work and o
    1.
       Combine multiple gff3 files into one and extract fasta sequences of un-annotated ORFs
    2.
-      Use Blastx against the Uniref100 or Nr databases to get best similarity for each each ORF fasta sequence
+      Use Blastx against the Uniref90 or Nr databases to get best similarity for each each ORF fasta sequence
    3.
       Use the Uniref obtained in the previous step to assign KEGG and COG/NOG IDs to each of the un-annotated fasta files. If you used Nr, then you get GI (genbank identifiers) which are used to look up the putative function and taxonomy of the proteic sequence.
    4.

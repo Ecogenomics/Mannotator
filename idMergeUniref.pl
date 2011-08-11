@@ -356,7 +356,7 @@ __DATA__
 
     idMergeUniref.pl -Ku KEGG2Uniprot_file -Uc UniProt2Cog_file -Kp KEGG_pathways_file -Kk KEGG_ko_file -Ke KEGG2Enzyme_file -cD COG_text [-o OUTFILE] [-help|h]
 
-        -Uc   UniProt2Cog_file      UniProt 2 COG File [http://eggnog.embl.de/cgi_bin/show_download_page.pl]
+        -Uc   UniProt2Cog_file      File of assignements of Uniprot ID to COGs and NOGs [http://eggnog.embl.de/download/UniProtAC2eggNOG.tsv.gz]
         -Ku   KEGG2Uniprot file     KEGG genes to Uniprot accessions [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
         -Ke   KEGG2Enzyme file      KEGG genes to Uniprot accessions [munged from ftp://ftp.genome.jp/pub/kegg/brite/ko/]
         -Kp   KEGG_pathways_file    KEGG entry ID to pathway ID [ftp://ftp.genome.jp/pub/kegg/linkdb/genes/]
