@@ -69,7 +69,7 @@ my $global_results_max_cut_off = 1;
 
 #blast program to run
 my $blast_program = "blastx";
-if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
+if (exists $options->{'blastprg'}) { $blast_program = $options->{'blastprg'}; }
 
 my $threads = 1;
 if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
@@ -335,7 +335,6 @@ sub annotate {
     #-----
     # call out to blast2ann.pl
     #
-    my ($seq_embed) = shift;
 
     # load the databases
     &loadU2A($options->{'i2a'});
@@ -392,7 +391,7 @@ sub annotate {
     }
 
     # finally, embed the FASTA sequences in the GFF file
-    if (exists $options->{'seq_embed'}) {
+    if (exists $options->{'seqembed'}) {
         print $out_fh "##FASTA\n";
         my $file = $options->{'contigs'};
         my $in  = Bio::SeqIO->new( -file => $file  , -format => 'fasta' ); 
@@ -620,7 +619,7 @@ sub checkParams {
          "blastx|x:+",
          "sims|s:s",
          "evalue|e:s",
-         "blast_prg|p:s",
+         "blastprg|p:s",
          "flatfile|f:+",
          "threads|t:s",
          "one|1+",
@@ -628,7 +627,7 @@ sub checkParams {
          "three|3+",
          "four|4+",
          "five|5+",
-         "seq_embed|s",
+         "seqembed|s",
     );
     my %options;
 
@@ -726,17 +725,17 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
+    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blastprg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
 
       -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
-      -contigs -c FILE             Contigs to be annotated...
-      -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
-      -i2a -i FILE                 ID to annotations mapping file
+      -contigs -c FILE             Contigs to be annotated (in FASTA format)
+      -protdb -p LOCATION          Location of a protein sequence database, e.g. EMBL-EBI UniRef or NCBI Nr
+      -i2a -i FILE                 ID to annotations mapping file (see README)
 
-      [-seq_embed -s]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
+      [-seqembed -s]               Embed sequences into GFF files (useful to view the annotation in Artemis)     
       [-threads -t INTEGER]        Number of blast jobs to run concurrently [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
-      [-blast_prg -b BLAST_TYPE]   The type of blast to run [default: blastx]
+      [-blastprg -b BLAST_TYPE]    The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
