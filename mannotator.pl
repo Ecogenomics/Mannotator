@@ -731,12 +731,12 @@ __DATA__
       -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
       -contigs -c FILE             Contigs to be annotated...
       -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
-      -i2a -i FILE                 ID to annotations mapping :file
+      -i2a -i FILE                 ID to annotations mapping file
 
       [-seq_embed -s]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
-      [-threads -t]                Number of blast jobs to run [default: 1]
+      [-threads -t INTEGER]        Number of blast jobs to run concurrently [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
-      [-blast_prg -b BLAST TYPE]   The type of blast to run [default: blastx]
+      [-blast_prg -b BLAST_TYPE]   The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
