@@ -245,12 +245,19 @@ sub blastUnknowns {
     #
     # first blast em'
     my $num_seq = `grep -c ">" $global_tmp_fasta`;
-    print "total sequences to blast: $num_seq\n";
+    print "Number of sequences to blast: $num_seq\n";
     if ($threads > 1)
     {
-    	my $num_seq_per_file = int ($num_seq / $threads);
-    	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
-    	print "splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
+        my $num_seq_per_file = int ($num_seq / $threads);
+
+        if ($num_seq_per_file < 1) {
+            warn "Warning: The number of sequences is smaller than number of threads requested. Using one sequence per thread...\n";
+            $num_seq_per_file = 1;
+            $threads = $num_seq;
+        }
+
+        my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
+    	print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
     	my $i = 1;
     	my $j = 0;
     	while ($i < $threads)
@@ -364,7 +371,7 @@ sub annotate {
         next if($#blast_files == -1);
 		if (scalar @blast_files == 0)
 		{
-			warn "hmm... this is strange...\nthere dosn't seem to be any blast output files in:\n$current_folder\n";
+			warn "hmm... this is strange...\nthere doesn't seem to be any blast output files in:\n$current_folder\n";
 		}
         # parse the blast results and report the GO predictions
         &generateAnnotations($current_folder, @blast_files);
@@ -563,6 +570,7 @@ sub recombineGff3() {
             if("__DOOF" ne $global_annotations_hash{$feat_key})
             {
                 $gff_bits[8] =~ s/: hypothetical protein//;
+                $gff_bits[8] .= ';' unless $gff_bits[8] =~ m/;$/;
                 $gff_bits[8] = $gff_bits[8].$global_annotations_hash{$feat_key};
                 $gff_bits[8] = gff_collapse_tags($gff_bits[8]);
                 print $ann_fh (join "\t", @gff_bits)."\n";
