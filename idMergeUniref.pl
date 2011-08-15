@@ -265,6 +265,9 @@ foreach my $UPID (keys %global_seenUP_hash)
     	$out_string .= $global_Go2U_hash{$UPID};
     }
     
+    # Collapse identical tags into a list
+    $out_string = gff_collapse_tags($out_string);
+
     if(0 != $found_one)
     {
         chomp $out_string;
@@ -277,6 +280,31 @@ close $OUT_fh;
 ######################################################################
 # CUSTOM SUBS
 ######################################################################
+
+sub gff_collapse_tags {
+    # Collapse multiple identical tags into a single one, e.g. transform:
+    #    tag2=value2;tag2=value3
+    # into:
+    #    tag2=value2,value3
+    my $string = shift;
+    my @pairs = split ';', $string;
+    my %tag_hash;
+    $string = '';
+    for my $pair (@pairs) {
+       my ($tag, $value) = split '=', $pair;
+       if ( (defined $value) and ($value !~ m/^\s*$/) ) {
+          if (exists $tag_hash{$tag}) {
+             $tag_hash{$tag} .= ',';
+          }
+          $tag_hash{$tag} .= $value;
+       }
+    }
+    while ( my ($tag, $values) = each %tag_hash ) {
+       $string .= ';' if $string;
+       $string .= "$tag=$values";
+    }
+    return $string;
+}
 
 
 ######################################################################

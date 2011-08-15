@@ -507,30 +507,9 @@ sub generateAnnotations() {
                     }
                 }
             }
-            $global_annotations_hash{$result->query_name} = gff_escape_chars($tmp_ann);
+            $global_annotations_hash{$result->query_name} = $tmp_ann;
         }
     }    
-}
-
-
-sub gff_escape_chars {
-    # GFF3 basics:
-    #    = separates tag from values: tag1=value
-    #    ; separates tag and value pairs: tag1=value1;tag2=value2
-    #    , separates multiple values that a tag can have: tag2=value2,value3
-    # As a consequence =;, need to be escaped in hexadecimal if their occur in
-    # a tag or value:
-    #    ; (semicolon) - %3B
-    #    = (equals) - %3D
-    #    , (comma) - %2C
-    # Here, we deal with the ANN mapping file, which uses unescaped commas in
-    # tag values, e.g.:
-    #    A8MM54^;Ontology_term=KEGG_ENZYME:ftsX, cell division transport permease
-    # To get valid GFF3 files, we need to escape commas.
-    # Getting rid of the commas is easier and more fun!
-    my $ann_string = shift;
-    $ann_string =~ s/,/ /g;
-    return $ann_string;
 }
 
 
