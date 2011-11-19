@@ -69,7 +69,7 @@ my $global_results_max_cut_off = 1;
 
 #blast program to run
 my $blast_program = "blastx";
-if (exists $options->{'blastprg'}) { $blast_program = $options->{'blastprg'}; }
+if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
 
 my $threads = 1;
 if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
@@ -148,7 +148,7 @@ sub splitGffs {
         print "Parsing: $gff \n";
         my $current_fh;
         my $current_fasta_header = "__DOOF";
-        open my $gff_fh, "<", $gff or die $!;
+        open my $gff_fh, "<", $gff or die "Error: Could not read file $gff\n$!\n";
         my $gff_def = <$gff_fh>;
         while(<$gff_fh>)
         {
@@ -172,7 +172,8 @@ sub splitGffs {
                 $global_tmp_folders{$bits[0]} = 1;
                     
                 # make a new file handle
-                open $current_fh, ">", $bits[0]."/$gff" or die $!;
+                my $out_file = $bits[0].'/'.$gff;
+                open $current_fh, ">", $out_file or die "Error: Could not write file $out_file\n$!\n";
                     
                 # print back in the header information
                 print $current_fh $gff_def;
@@ -245,25 +246,19 @@ sub blastUnknowns {
     #
     # first blast em'
     my $num_seq = `grep -c ">" $global_tmp_fasta`;
-    print "Number of sequences to blast: $num_seq\n";
+    print "total sequences to blast: $num_seq\n";
     if ($threads > 1)
     {
-        my $num_seq_per_file = int ($num_seq / $threads);
-
-        if ($num_seq_per_file < 1) {
-            warn "Warning: The number of sequences is smaller than number of threads requested. Using one sequence per thread...\n";
-            $num_seq_per_file = 1;
-            $threads = $num_seq;
-        }
-
-        my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
-    	print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
+    	my $num_seq_per_file = int ($num_seq / $threads);
+    	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
+    	print "splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
     	my $i = 1;
     	my $j = 0;
     	while ($i < $threads)
     	{
     		# open a file to hold a chunk
-		open (CH, ">",$global_tmp_fasta."_".$i) or die $!;
+                my $out_file = $global_tmp_fasta."_".$i;
+		open (CH, ">", $out_file) or die "Error: Could not write file $out_file\n$!\n";
 		while(my $fasta = $seqio_global->next_seq())
 		{
               last if $j > $num_seq_per_file;
@@ -273,7 +268,8 @@ sub blastUnknowns {
             close CH;
             $i++;
     	}
-    	open (CH, ">",$global_tmp_fasta."_".$i) or die $!;
+        my $out_file = $global_tmp_fasta."_".$i;
+    	open (CH, ">",$out_file) or die "Error: Could not write file $out_file\n$!\n";
     	while(my $fasta = $seqio_global->next_seq())
 	{
         print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";
@@ -311,11 +307,12 @@ sub splitBlastResults {
     
     if ($options->{'sims'})
     {
-    open $blast_results, "<", $options->{'sims'} or die $!;
+    open $blast_results, "<", $options->{'sims'} or die "Error: Could not read file $blast_results\n$!\n";
     }
     else
     {
-    	open $blast_results, "<", "$global_tmp_fasta.$blast_program" or die $!;
+        my $blast_file = "$global_tmp_fasta.$blast_program";
+    	open $blast_results, "<", $blast_file or die "Error: Could not read file $blast_file\n$!\n";
     }
     while(<$blast_results>)
     {
@@ -334,7 +331,8 @@ sub splitBlastResults {
                 # we have a file to close
                 close $current_file_handle;
             }
-            open $current_file_handle, ">", "$dir_name/unknowns.$blast_program" or die $!;
+            my $unknown_file = "$dir_name/unknowns.$blast_program";
+            open $current_file_handle, ">", $unknown_file or die "Error: Could not write file $unknown_file\n$!\n";
             $current_dir_name = $dir_name;
         }
         print $current_file_handle $_;
@@ -350,6 +348,7 @@ sub annotate {
     #-----
     # call out to blast2ann.pl
     #
+    my ($seq_embed) = shift;
 
     # load the databases
     &loadU2A($options->{'i2a'});
@@ -364,14 +363,14 @@ sub annotate {
         my @blast_files = ();
         if (-d $current_folder) {
             opendir(INDIR, $current_folder)
-            or die "Failed to read from directory $current_folder:$!\n";
+            or die "Error: Could not read directory $current_folder\n$!\n";
             @blast_files = grep /\.$blast_program$/, readdir (INDIR);
             closedir (INDIR);
         }
         next if($#blast_files == -1);
 		if (scalar @blast_files == 0)
 		{
-			warn "hmm... this is strange...\nthere doesn't seem to be any blast output files in:\n$current_folder\n";
+			warn "Warning: hmm... this is strange...\nthere does not seem to be any blast output files in $current_folder\n";
 		}
         # parse the blast results and report the GO predictions
         &generateAnnotations($current_folder, @blast_files);
@@ -390,7 +389,7 @@ sub annotate {
     
     # then recombine it all!
     print "Recombining results\n";
-    open my $out_fh, ">", $global_output_file or die $!;
+    open my $out_fh, ">", $global_output_file or die "Error: Could not write file $global_output_file\n$!\n";
     print $out_fh "##gff-version  3\n";
     foreach my $current_folder (keys %global_tmp_folders)
     {
@@ -406,7 +405,7 @@ sub annotate {
     }
 
     # finally, embed the FASTA sequences in the GFF file
-    if (exists $options->{'seqembed'}) {
+    if (exists $options->{'seq_embed'}) {
         print $out_fh "##FASTA\n";
         my $file = $options->{'contigs'};
         my $in  = Bio::SeqIO->new( -file => $file  , -format => 'fasta' ); 
@@ -466,7 +465,7 @@ sub loadU2A() {
     
     print "Loading ID to annotations mapping file...";
     
-    open my $U2A_fh, "<", $Uniprot2ANN_file or die "Cannot read from U2A file: $Uniprot2ANN_file:$!\n";
+    open my $U2A_fh, "<", $Uniprot2ANN_file or die "Error: Could not read U2A file $Uniprot2ANN_file\n$!\n";
     while (<$U2A_fh>) {
         chomp $_;
         my @data = split(/\^/, $_);
@@ -487,7 +486,7 @@ sub generateAnnotations() {
         # Load the result into memory
         my $in = new Bio::SearchIO(-format => 'blastTable',
             -file => "$current_folder/$blast_file")
-            or die "Failed to read from $blast_file: $!\n";
+            or die "Error: Could not read file $blast_file\n$!\n";
         
         my $query_name = undef;
         
@@ -514,9 +513,30 @@ sub generateAnnotations() {
                     }
                 }
             }
-            $global_annotations_hash{$result->query_name} = $tmp_ann;
+            $global_annotations_hash{$result->query_name} = gff_escape_chars($tmp_ann);
         }
     }    
+}
+
+
+sub gff_escape_chars {
+    # GFF3 basics:
+    #    = separates tag from values: tag1=value
+    #    ; separates tag and value pairs: tag1=value1;tag2=value2
+    #    , separates multiple values that a tag can have: tag2=value2,value3
+    # As a consequence =;, need to be escaped in hexadecimal if their occur in
+    # a tag or value:
+    #    ; (semicolon) - %3B
+    #    = (equals) - %3D
+    #    , (comma) - %2C
+    # Here, we deal with the ANN mapping file, which uses unescaped commas in
+    # tag values, e.g.:
+    #    A8MM54^;Ontology_term=KEGG_ENZYME:ftsX, cell division transport permease
+    # To get valid GFF3 files, we need to escape commas.
+    # Getting rid of the commas is easier and more fun!
+    my $ann_string = shift;
+    $ann_string =~ s/,/ /g;
+    return $ann_string;
 }
 
 
@@ -554,7 +574,7 @@ sub recombineGff3() {
     
     # specify input via -fh or -file
     my $gffio_in = Bio::Tools::GFF->new(-file => $gff3_in, -gff_version => 3);
-    open my $ann_fh, ">", $gff3_out or die $!;
+    open my $ann_fh, ">", $gff3_out or die "Error: Could not write file $gff3_out\n$!\n";
     print $ann_fh "##gff-version 3\n";
     
     # loop over the input stream
@@ -570,7 +590,6 @@ sub recombineGff3() {
             if("__DOOF" ne $global_annotations_hash{$feat_key})
             {
                 $gff_bits[8] =~ s/: hypothetical protein//;
-                $gff_bits[8] .= ';' unless $gff_bits[8] =~ m/;$/;
                 $gff_bits[8] = $gff_bits[8].$global_annotations_hash{$feat_key};
                 $gff_bits[8] = gff_collapse_tags($gff_bits[8]);
                 print $ann_fh (join "\t", @gff_bits)."\n";
@@ -614,7 +633,7 @@ sub checkParams {
          "blastx|x:+",
          "sims|s:s",
          "evalue|e:s",
-         "blastprg|p:s",
+         "blast_prg|p:s",
          "flatfile|f:+",
          "threads|t:s",
          "one|1+",
@@ -622,7 +641,7 @@ sub checkParams {
          "three|3+",
          "four|4+",
          "five|5+",
-         "seqembed|s",
+         "seq_embed|s",
     );
     my %options;
 
@@ -720,17 +739,17 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blastprg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
+    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
 
       -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
-      -contigs -c FILE             Contigs to be annotated (in FASTA format)
-      -protdb -p LOCATION          Location of a protein sequence database, e.g. EMBL-EBI UniRef or NCBI Nr
-      -i2a -i FILE                 ID to annotations mapping file (see README)
+      -contigs -c FILE             Contigs to be annotated...
+      -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
+      -i2a -i FILE                 ID to annotations mapping :file
 
-      [-seqembed -s]               Embed sequences into GFF files (useful to view the annotation in Artemis)     
-      [-threads -t INTEGER]        Number of blast jobs to run concurrently [default: 1]
+      [-seq_embed -s]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
+      [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
-      [-blastprg -b BLAST_TYPE]    The type of blast to run [default: blastx]
+      [-blast_prg -b BLAST TYPE]   The type of blast to run [default: blastx]
       [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
       [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep -k]                   Keep all the tmp directories
