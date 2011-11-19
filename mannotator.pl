@@ -28,6 +28,7 @@ use strict;
 use warnings;
 
 #perl modules
+use File::Basename;
 use Getopt::Long;
 use Bio::SeqIO;
 use Bio::Seq;
@@ -172,7 +173,7 @@ sub splitGffs {
                 $global_tmp_folders{$bits[0]} = 1;
                     
                 # make a new file handle
-                my $out_file = $bits[0].'/'.$gff;
+                my $out_file = $bits[0].'/'.basename($gff);
                 open $current_fh, ">", $out_file or die "Error: Could not write file $out_file\n$!\n";
                     
                 # print back in the header information
