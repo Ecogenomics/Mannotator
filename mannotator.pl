@@ -135,6 +135,8 @@ if(exists $options->{'flatfile'})
 {
 	createFlatFile();
 }
+
+
 ######################################################################
 # CUSTOM SUBS
 ######################################################################
@@ -170,6 +172,7 @@ sub splitGffs {
                 # make a new directory.
                 my $cmd = "mkdir -p $bits[0]";
                 `$cmd`;
+                die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
                 $global_tmp_folders{$bits[0]} = 1;
                     
                 # make a new file handle
@@ -188,6 +191,7 @@ sub splitGffs {
         }
     }
 }
+
 
 sub splitFasta {
     #-----
@@ -228,9 +232,13 @@ sub combineGffs {
         # run the script!
         my $cmd = "combineGff3.pl -c $current_folder/sequence.fa -g $gff_str -o $current_folder/combined.gff3 -a $current_folder/unknowns.fa";
         `$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
         
         # move the unknowns onto the pile
-        `cat $current_folder/unknowns.fa >> $global_tmp_fasta`;
+        $cmd = "cat $current_folder/unknowns.fa >> $global_tmp_fasta";
+        `$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+
     }
 }
 
@@ -238,6 +246,8 @@ sub worker {
 	my ($chunk, $n) = @_;
 	my $cmd = "blastall -p $blast_program -i $chunk -d $options->{'protdb'} -o $global_tmp_fasta.$n.$blast_program -m 8";
     `$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+
 }
 
 
@@ -245,8 +255,11 @@ sub blastUnknowns {
     #-----
     # Blast unknowns against the Uniref or Nr protein database
     #
-    # first blast em'
-    my $num_seq = `grep -c ">" $global_tmp_fasta`;
+    # first blast them
+    my $cmd = "grep -c '>' $global_tmp_fasta";
+    my $num_seq = `$cmd`;
+    die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+
     print "total sequences to blast: $num_seq\n";
     if ($threads > 1)
     {
@@ -289,7 +302,10 @@ sub blastUnknowns {
 		
 		for (my $i = 1; $i <= $threads; $i++)
 		{
-			`cat $global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program`
+                        my $cmd = "cat $global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program";
+			`$cmd`;
+                        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+
 		}
 		
     }
@@ -297,8 +313,11 @@ sub blastUnknowns {
     {
     	my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'protdb'} -o $global_tmp_fasta.$blast_program -m 8";
     	`$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
     }
 }
+
+
 sub splitBlastResults {
 
     # now split them across multiple folders...
@@ -431,22 +450,29 @@ sub cleanTmps {
     {
         my $cmd = "rm -rf $current_folder";
         `$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
     }
-    
-    `rm $global_tmp_fasta`;
+   
+    my $cmd = "rm $global_tmp_fasta"; 
+    `$cmd`;
+    die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
     
     if ($threads > 1)
     {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
     	my $global_fasta_chunk = $global_tmp_fasta."_".$i;
-    	`rm $global_fasta_chunk $global_tmp_fasta.$i.$blast_program`;
+        my $rm_cmd = "rm $global_fasta_chunk $global_tmp_fasta.$i.$blast_program";
+    	`$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
     	}
     }
     
     if(0 == $keep_bx)
     {
-       `rm $global_tmp_fasta.$blast_program`;
+       my $rm_cmd = "rm $global_tmp_fasta.$blast_program";
+       `$cmd`;
+       die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
     }
 }
 
@@ -615,6 +641,7 @@ sub createFlatFile
 	print "generating genbank files for contigs...";
 	my $cmd = "gff2genbank.pl $options->{'c'} $global_output_file";
 	`$cmd`;
+        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
 	print "done\n";
 }
 
