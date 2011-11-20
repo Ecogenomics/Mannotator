@@ -170,9 +170,7 @@ sub splitGffs {
                 $current_fasta_header = $bits[0];
                   
                 # make a new directory.
-                my $cmd = "mkdir -p $bits[0]";
-                `$cmd`;
-                die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+                run("mkdir -p $bits[0]");
                 $global_tmp_folders{$bits[0]} = 1;
                     
                 # make a new file handle
@@ -230,23 +228,17 @@ sub combineGffs {
         $gff_str =~ s/,$//;
         
         # run the script!
-        my $cmd = "combineGff3.pl -c $current_folder/sequence.fa -g $gff_str -o $current_folder/combined.gff3 -a $current_folder/unknowns.fa";
-        `$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+        run("combineGff3.pl -c $current_folder/sequence.fa -g $gff_str -o $current_folder/combined.gff3 -a $current_folder/unknowns.fa");
         
         # move the unknowns onto the pile
-        $cmd = "cat $current_folder/unknowns.fa >> $global_tmp_fasta";
-        `$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+        run("cat $current_folder/unknowns.fa >> $global_tmp_fasta");
 
     }
 }
 
 sub worker {
 	my ($chunk, $n) = @_;
-	my $cmd = "blastall -p $blast_program -i $chunk -d $options->{'protdb'} -o $global_tmp_fasta.$n.$blast_program -m 8";
-    `$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+	run("blastall -p $blast_program -i $chunk -d $options->{'protdb'} -o $global_tmp_fasta.$n.$blast_program -m 8");
 
 }
 
@@ -256,9 +248,7 @@ sub blastUnknowns {
     # Blast unknowns against the Uniref or Nr protein database
     #
     # first blast them
-    my $cmd = "grep -c '>' $global_tmp_fasta";
-    my $num_seq = `$cmd`;
-    die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+    my $num_seq = run("grep -c '>' $global_tmp_fasta");
 
     print "total sequences to blast: $num_seq\n";
     if ($threads > 1)
@@ -302,18 +292,13 @@ sub blastUnknowns {
 		
 		for (my $i = 1; $i <= $threads; $i++)
 		{
-                        my $cmd = "cat $global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program";
-			`$cmd`;
-                        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
-
+                        run("cat $global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program");
 		}
 		
     }
     else
     {
-    	my $cmd = "blastall -p $blast_program -i $global_tmp_fasta -d $options->{'protdb'} -o $global_tmp_fasta.$blast_program -m 8";
-    	`$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+    	run("blastall -p $blast_program -i $global_tmp_fasta -d $options->{'protdb'} -o $global_tmp_fasta.$blast_program -m 8");
     }
 }
 
@@ -448,31 +433,23 @@ sub cleanTmps {
     my ($keep_bx) = @_;
     foreach my $current_folder (keys %global_tmp_folders)
     {
-        my $cmd = "rm -rf $current_folder";
-        `$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+        run("rm -rf $current_folder");
     }
    
-    my $cmd = "rm $global_tmp_fasta"; 
-    `$cmd`;
-    die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+    run("rm $global_tmp_fasta");
     
     if ($threads > 1)
     {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
     	my $global_fasta_chunk = $global_tmp_fasta."_".$i;
-        my $rm_cmd = "rm $global_fasta_chunk $global_tmp_fasta.$i.$blast_program";
-    	`$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+        run("rm $global_fasta_chunk $global_tmp_fasta.$i.$blast_program");
     	}
     }
     
     if(0 == $keep_bx)
     {
-       my $rm_cmd = "rm $global_tmp_fasta.$blast_program";
-       `$cmd`;
-       die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+       run("rm $global_tmp_fasta.$blast_program");
     }
 }
 
@@ -636,13 +613,21 @@ sub recombineGff3() {
     close $ann_fh;
 }
 
+
 sub createFlatFile
 {
 	print "generating genbank files for contigs...";
-	my $cmd = "gff2genbank.pl $options->{'c'} $global_output_file";
-	`$cmd`;
-        die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+	my $cmd = run("gff2genbank.pl $options->{'c'} $global_output_file");
 	print "done\n";
+}
+
+
+sub run {
+   # Run a command, check that it completed successfully and return its output
+   my ($cmd) = @_;
+   my $results = `$cmd`;
+   die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+   return $results;
 }
 
 
