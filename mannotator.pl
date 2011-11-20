@@ -28,6 +28,7 @@ use strict;
 use warnings;
 
 #perl modules
+use File::Path qw( remove_tree make_path ) ;
 use File::Basename;
 use Getopt::Long;
 use Bio::SeqIO;
@@ -170,7 +171,7 @@ sub splitGffs {
                 $current_fasta_header = $bits[0];
                   
                 # make a new directory.
-                run("mkdir -p $bits[0]");
+                make_path( $bits[0] );
                 $global_tmp_folders{$bits[0]} = 1;
                     
                 # make a new file handle
@@ -433,23 +434,26 @@ sub cleanTmps {
     my ($keep_bx) = @_;
     foreach my $current_folder (keys %global_tmp_folders)
     {
-        run("rm -rf $current_folder");
+        remove_tree( $current_folder );
     }
-   
-    run("rm $global_tmp_fasta");
+ 
+    unlink $global_tmp_fasta or die "Error: Could not delete file $global_tmp_fasta\n$!\n";
     
     if ($threads > 1)
     {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
     	my $global_fasta_chunk = $global_tmp_fasta."_".$i;
-        run("rm $global_fasta_chunk $global_tmp_fasta.$i.$blast_program");
+        unlink $global_fasta_chunk or die "Error: Could not delete file $global_fasta_chunk\n$!\n";
+        my $other = $global_tmp_fasta.$i.$blast_program;
+        unlink $other or die "Error: Could not delete file $other\n$!\n";
     	}
     }
     
     if(0 == $keep_bx)
     {
-       run("rm $global_tmp_fasta.$blast_program");
+       my $file = $global_tmp_fasta.$blast_program;
+       unlink $file or die "Error: Could not delete file $file\n$!\n";
     }
 }
 
