@@ -142,6 +142,22 @@ if(exists $options->{'flatfile'})
 ######################################################################
 # CUSTOM SUBS
 ######################################################################
+
+sub prodigal_seqname {
+    my ($comment) = @_;
+    # Prodigal's comment line may contain the sequence's true name. Try to get it!
+    #   # Sequence Data: seqnum=1;seqlen=16231;seqhdr="4 len=16231"
+    #   Prodigal_Seq_1  Prodigal_v2.50  CDS     3       1592    158.2   -       0       ID=1_1;partial=10;start_type=ATG;rbs_m
+    # Should be
+    #   4  Prodigal_v2.50  CDS     3       1592    158.2   -       0       ID=1_1;partial=10;start_type=ATG;rbs_m
+    my $seqname = undef;
+    if ($comment =~ m/Sequence Data:.*seqhdr="(\S+) /i ) {
+        $seqname = $1;
+    }
+    return $seqname;
+}
+
+
 sub splitGffs {
     #----
     # split the gffs into multiple files, one for each sequence
@@ -153,14 +169,23 @@ sub splitGffs {
         print "Parsing GFF file $gff\n";
         my $current_fh;
         my $current_fasta_header = "__DOOF";
+        my $true_fasta_header = undef;
         open my $gff_fh, "<", $gff or die "Error: Could not read file $gff\n$!\n";
         my $gff_def = <$gff_fh>;
         while(<$gff_fh>)
         {
             # comment lines split sequences
-            next if($_ =~ /^#/);
+            if ($_ =~ m/^#(.*)$/) {
+                my $prodigal_seqname = prodigal_seqname($1);
+                $true_fasta_header = $prodigal_seqname if defined $prodigal_seqname;
+                next;
+            }
+            
             my @bits = split /\t/, $_;
-            if($bits[0] ne $current_fasta_header)
+
+            my $fasta_header = defined $true_fasta_header ? $true_fasta_header : $bits[0];
+
+            if($fasta_header ne $current_fasta_header)
             {
                 if("__DOOF" ne $current_fasta_header)
                 {
@@ -168,15 +193,15 @@ sub splitGffs {
                     # so we have a file to close...
                     close $current_fh;
                 }
-                
-                $current_fasta_header = $bits[0];
+               
+                $current_fasta_header = $fasta_header;
                   
-                # make a new directory.
-                make_path( $bits[0] );
-                $global_tmp_folders{$bits[0]} = 1;
+                # make a new file and directory
+                make_path( $current_fasta_header );
+                $global_tmp_folders{$current_fasta_header} = 1;
                     
                 # make a new file handle
-                my $out_file = catfile( $bits[0], basename($gff) );
+                my $out_file = catfile( $current_fasta_header, basename($gff) );
                 open $current_fh, ">", $out_file or die "Error: Could not write file $out_file\n$!\n";
                     
                 # print back in the header information
@@ -203,19 +228,17 @@ sub splitFasta {
     while (my $seq = $seqio_object->next_seq)
     {
         my $seq_fn = catfile( $seq->display_id(), "sequence.fa" );
-        if(open my $ffh, ">", $seq_fn)
-        {
-            print $ffh ">" . $seq->display_id() . "\n";;
-            print $ffh $seq->seq(). "\n";
-            close $ffh;
-        }
+        open my $ffh, '>', $seq_fn or die "Error: Could not write file $seq_fn\n$!\n";
+        print $ffh ">" . $seq->display_id() . "\n";
+        print $ffh $seq->seq(). "\n";
+        close $ffh;
     }
 }
 
 sub combineGffs {
     #-----
-    # Wrapper to combine multiple orf calls nto one gff
-    # calls external script
+    # Wrapper to combine multiple orf calls into one gff
+    # by calling an external script
     #
     my @gffs = split /,/, $options->{'gffs'};
     foreach my $current_folder (keys %global_tmp_folders)
