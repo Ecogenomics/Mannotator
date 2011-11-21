@@ -232,7 +232,7 @@ sub combineGffs {
         run("combineGff3.pl -c $current_folder/sequence.fa -g $gff_str -o $current_folder/combined.gff3 -a $current_folder/unknowns.fa");
         
         # move the unknowns onto the pile
-        run("cat $current_folder/unknowns.fa >> $global_tmp_fasta");
+        cat( "$current_folder/unknowns.fa", $global_tmp_fasta );
 
     }
 }
@@ -293,7 +293,7 @@ sub blastUnknowns {
 		
 		for (my $i = 1; $i <= $threads; $i++)
 		{
-                        run("cat $global_tmp_fasta.$i.$blast_program >> $global_tmp_fasta.$blast_program");
+			cat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
 		}
 		
     }
@@ -618,8 +618,7 @@ sub recombineGff3() {
 }
 
 
-sub createFlatFile
-{
+sub createFlatFile {
 	print "generating genbank files for contigs...";
 	my $cmd = run("gff2genbank.pl $options->{'c'} $global_output_file");
 	print "done\n";
@@ -632,6 +631,33 @@ sub run {
    my $results = `$cmd`;
    die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
    return $results;
+}
+
+
+sub cat {
+   # Concatenate or append file content (a single file name or an
+   # arrayref of filenames $in_files) into another file (scalar
+   # $out_file). If mode is '>', create/overwrite the output file,
+   # but if mode is '>>' (default), create/append.
+   my ($in_files, $out_file, $mode) = @_;
+   if (not defined $mode) {
+     $mode = '>>';
+   } 
+   if ($mode !~ /^>{1,2}$/) {
+      die "Error: Invalid cat mode $mode\n";
+   }
+   if (not ref $in_files) {
+      # Put single file into an array
+      $in_files = [ $in_files ];
+   }
+   open my $ofh, $mode, $out_file or die "Error: Could not write file $out_file\n$!\n";
+   for my $in_file (@$in_files) {
+      open my $ifh, '<', $in_file or die "Error: Could not open file $in_file\n$!\n";
+      print $ofh while(<$ifh>);
+      close $ifh;
+   }
+   close $ofh;
+   return 1;
 }
 
 
