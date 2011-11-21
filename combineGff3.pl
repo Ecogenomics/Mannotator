@@ -27,7 +27,7 @@
 use strict;
 use warnings;
 
-#erl modules
+#Perl modules
 use Getopt::Long;
 use Data::Dumper;
 use Bio::SeqIO;
@@ -76,12 +76,12 @@ my $global_shared_olap_cutoff = 0.1;
 # output gff3 file
 my $default_output_file = "parsed.gff3";
 if(exists $options->{'out'}) { $default_output_file = $options->{'out'}; }
-open my $out_fh, ">", $default_output_file or die $!;
+open my $out_fh, ">", $default_output_file or die "Error: Could not write file $default_output_file\n$!\n";
 
 # output todo annotation file
 my $default_ann_file = "todo.fa";
 if(exists $options->{'ann'}) { $default_ann_file = $options->{'ann'}; }
-open my $ann_fh, ">", $default_ann_file or die $!;
+open my $ann_fh, ">", $default_ann_file or die "Error: Could not write file $default_ann_file\n$!\n";
 
 # first parse the fasta file of contigs to get headers and sequence lengths...
 # really there should only be one guy here...
