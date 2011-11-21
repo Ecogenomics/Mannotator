@@ -149,7 +149,7 @@ sub splitGffs {
     my @gffs = split /,/, $options->{'gffs'};
     foreach my $gff (@gffs)
     {
-        print "Parsing: $gff \n";
+        print "Parsing GFF file $gff\n";
         my $current_fh;
         my $current_fasta_header = "__DOOF";
         open my $gff_fh, "<", $gff or die "Error: Could not read file $gff\n$!\n";
@@ -238,9 +238,8 @@ sub combineGffs {
 }
 
 sub worker {
-	my ($chunk, $n) = @_;
-	run("blastall -p $blast_program -i $chunk -d $options->{'protdb'} -o $global_tmp_fasta.$n.$blast_program -m 8");
-
+	my ($in_fasta, $out_blast) = @_;
+	run("blastall -p $blast_program -i $in_fasta -d $options->{'protdb'} -o $out_blast -m 8");
 }
 
 
@@ -251,12 +250,12 @@ sub blastUnknowns {
     # first blast them
     my $num_seq = count_fasta_sequences($global_tmp_fasta);
 
-    print "total sequences to blast: $num_seq\n";
+    print "Number of sequences to blast: $num_seq\n";
     if ($threads > 1)
     {
     	my $num_seq_per_file = int ($num_seq / $threads);
     	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
-    	print "splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
+    	print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
     	my $i = 1;
     	my $j = 0;
     	while ($i < $threads)
@@ -281,17 +280,17 @@ sub blastUnknowns {
 	}
    	close CH;
 
-   	for (my $x = 1; $x <= $threads; $x++) 
+   	for my $x (1 .. $threads) 
    	{
-     	print "spawning thread $i\n";
+     	print "Spawning thread $x out of $threads\n";
      	my $q = $global_tmp_fasta."_".$i;
-     	threads->new(\&worker, $q, $i);
+        my $o = "$global_tmp_fasta.$i.$blast_program";
+     	threads->new(\&worker, $q, $o);
    	}
             
         $_->join() for threads->list();
-   		
 		
-		for (my $i = 1; $i <= $threads; $i++)
+		for my $i (1 .. $threads)
 		{
 			cat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
 		}
@@ -299,7 +298,7 @@ sub blastUnknowns {
     }
     else
     {
-    	run("blastall -p $blast_program -i $global_tmp_fasta -d $options->{'protdb'} -o $global_tmp_fasta.$blast_program -m 8");
+        worker($global_tmp_fasta, $global_tmp_fasta.$blast_program);
     }
 }
 
@@ -445,14 +444,14 @@ sub cleanTmps {
     	{
     	my $global_fasta_chunk = $global_tmp_fasta."_".$i;
         unlink $global_fasta_chunk or die "Error: Could not delete file $global_fasta_chunk\n$!\n";
-        my $other = $global_tmp_fasta.$i.$blast_program;
+        my $other = "$global_tmp_fasta.$i.$blast_program";
         unlink $other or die "Error: Could not delete file $other\n$!\n";
     	}
     }
     
-    if(0 == $keep_bx)
+    if($keep_bx == 0)
     {
-       my $file = $global_tmp_fasta.$blast_program;
+       my $file = "$global_tmp_fasta.$blast_program";
        unlink $file or die "Error: Could not delete file $file\n$!\n";
     }
 }
@@ -653,7 +652,9 @@ sub cat {
    open my $ofh, $mode, $out_file or die "Error: Could not write file $out_file\n$!\n";
    for my $in_file (@$in_files) {
       open my $ifh, '<', $in_file or die "Error: Could not open file $in_file\n$!\n";
-      print $ofh while(<$ifh>);
+      while (my $line = <$ifh>) {
+         print $ofh $line;
+      }
       close $ifh;
    }
    close $ofh;
