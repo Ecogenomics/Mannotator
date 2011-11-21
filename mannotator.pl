@@ -249,7 +249,7 @@ sub blastUnknowns {
     # Blast unknowns against the Uniref or Nr protein database
     #
     # first blast them
-    my $num_seq = run("grep -c '^>' $global_tmp_fasta");
+    my $num_seq = count_fasta_sequences($global_tmp_fasta);
 
     print "total sequences to blast: $num_seq\n";
     if ($threads > 1)
@@ -658,6 +658,18 @@ sub cat {
    }
    close $ofh;
    return 1;
+}
+
+
+sub count_fasta_sequences {
+   my ($fasta_file) = @_;
+   my $count = 0;
+   open my $fh, '<', $fasta_file or die "Error: Could not read file $fasta_file\n$!\n";
+   while (my $line = <$fh>) {
+     $count++ if $line =~ m/^>/;
+   }
+   close $fh;
+   return $count;
 }
 
 
