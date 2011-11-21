@@ -262,43 +262,43 @@ sub blastUnknowns {
     	{
     		# open a file to hold a chunk
                 my $out_file = $global_tmp_fasta."_".$i;
-		open (CH, ">", $out_file) or die "Error: Could not write file $out_file\n$!\n";
+		open (my $ch, ">", $out_file) or die "Error: Could not write file $out_file\n$!\n";
 		while(my $fasta = $seqio_global->next_seq())
 		{
-              last if $j > $num_seq_per_file;
-              print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";
-     		$j++;
+       			last if $j > $num_seq_per_file;
+              		print $ch ">".$fasta->primary_id."\n".$fasta->seq()."\n";
+     			$j++;
 		}
-            close CH;
-            $i++;
+            	close $ch;
+            	$i++;
     	}
         my $out_file = $global_tmp_fasta."_".$i;
-    	open (CH, ">",$out_file) or die "Error: Could not write file $out_file\n$!\n";
+    	open (my $ch, ">",$out_file) or die "Error: Could not write file $out_file\n$!\n";
     	while(my $fasta = $seqio_global->next_seq())
 	{
-        print CH ">".$fasta->primary_id."\n".$fasta->seq()."\n";
+        	print $ch ">".$fasta->primary_id."\n".$fasta->seq()."\n";
 	}
-   	close CH;
+   	close $ch;
 
-   	for my $x (1 .. $threads) 
+   	for my $i (1 .. $threads) 
    	{
-     	print "Spawning thread $x out of $threads\n";
-     	my $q = $global_tmp_fasta."_".$i;
-        my $o = "$global_tmp_fasta.$i.$blast_program";
-     	threads->new(\&worker, $q, $o);
+	     	print "Spawning BLAST worker $i (out of $threads)\n";
+     		my $q = $global_tmp_fasta."_".$i;
+        	my $o = "$global_tmp_fasta.$i.$blast_program";
+     		threads->new(\&worker, $q, $o);
    	}
             
         $_->join() for threads->list();
 		
-		for my $i (1 .. $threads)
-		{
-			cat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
-		}
+	for my $i (1 .. $threads)
+	{
+		cat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
+	}
 		
     }
     else
     {
-        worker($global_tmp_fasta, $global_tmp_fasta.$blast_program);
+        worker($global_tmp_fasta, "$global_tmp_fasta.$blast_program");
     }
 }
 
