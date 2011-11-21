@@ -30,6 +30,7 @@ use warnings;
 #perl modules
 use File::Path qw( remove_tree make_path ) ;
 use File::Basename;
+use File::Spec::Functions; # catfile
 use Getopt::Long;
 use Bio::SeqIO;
 use Bio::Seq;
@@ -175,7 +176,7 @@ sub splitGffs {
                 $global_tmp_folders{$bits[0]} = 1;
                     
                 # make a new file handle
-                my $out_file = $bits[0].'/'.basename($gff);
+                my $out_file = catfile( $bits[0], basename($gff) );
                 open $current_fh, ">", $out_file or die "Error: Could not write file $out_file\n$!\n";
                     
                 # print back in the header information
@@ -194,14 +195,14 @@ sub splitGffs {
 
 sub splitFasta {
     #-----
-    # Simple script to split a fasta sequence ansd put into multiple folders
+    # Simple script to split a fasta sequence and put into multiple folders
     # Folders should be made by now and should be named according to the 
     # fasta_headers...
     #
     my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => "fasta");
     while (my $seq = $seqio_object->next_seq)
     {
-        my $seq_fn = $seq->display_id(). "/sequence.fa";
+        my $seq_fn = catfile( $seq->display_id(), "sequence.fa" );
         if(open my $ffh, ">", $seq_fn)
         {
             print $ffh ">" . $seq->display_id() . "\n";;
@@ -222,17 +223,20 @@ sub combineGffs {
         my $gff_str = "";
         foreach my $gff (@gffs)
         {
-            $gff_str .= "$current_folder/$gff,";
+            $gff_str .= catfile( $current_folder, $gff) . ",";
         }
         
         # take off the last comma
         $gff_str =~ s/,$//;
         
         # run the script!
-        run("combineGff3.pl -c $current_folder/sequence.fa -g $gff_str -o $current_folder/combined.gff3 -a $current_folder/unknowns.fa");
+        my $sequence_file = catfile( $current_folder, "sequence.fa" );
+        my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
+        my $combined_file = catfile( $current_folder, "combined.gff3" );
+        run("combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file");
         
         # move the unknowns onto the pile
-        cat( "$current_folder/unknowns.fa", $global_tmp_fasta );
+        cat( $unknowns_file, $global_tmp_fasta );
 
     }
 }
@@ -336,7 +340,7 @@ sub splitBlastResults {
                 # we have a file to close
                 close $current_file_handle;
             }
-            my $unknown_file = "$dir_name/unknowns.$blast_program";
+            my $unknown_file = catfile( $dir_name, "unknowns.$blast_program" );
             open $current_file_handle, ">", $unknown_file or die "Error: Could not write file $unknown_file\n$!\n";
             $current_dir_name = $dir_name;
         }
@@ -381,7 +385,9 @@ sub annotate {
         &generateAnnotations($current_folder, @blast_files);
 		
         # insert these new values into the GFF3 file
-        &recombineGff3("$current_folder/combined.gff3", "$current_folder/annotated.gff3");
+        my $combined_file  = catfile( $current_folder, "combined.gff3"  );
+        my $annotated_file = catfile( $current_folder, "annotated.gff3" );
+        &recombineGff3($combined_file, $annotated_file);
 
         $counter++;
         if($counter == 10)
@@ -398,7 +404,8 @@ sub annotate {
     print $out_fh "##gff-version  3\n";
     foreach my $current_folder (keys %global_tmp_folders)
     {
-        if(open my $this_gff3, "<", "$current_folder/annotated.gff3")
+        my $annotated_file = catfile( $current_folder, "annotated.gff3" );
+        if(open my $this_gff3, "<", $annotated_file)
         {
             while(<$this_gff3>)
             {
@@ -491,9 +498,11 @@ sub generateAnnotations() {
     foreach my $blast_file (@blast_files) 
     {
         # Load the result into memory
-        my $in = new Bio::SearchIO(-format => 'blastTable',
-            -file => "$current_folder/$blast_file")
-            or die "Error: Could not read file $blast_file\n$!\n";
+        $blast_file = catfile( $current_folder, $blast_file );
+        my $in = new Bio::SearchIO(
+            -format => 'blastTable',
+            -file => $blast_file
+        );
         
         my $query_name = undef;
         
