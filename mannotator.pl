@@ -249,7 +249,7 @@ sub blastUnknowns {
     # Blast unknowns against the Uniref or Nr protein database
     #
     # first blast them
-    my $num_seq = run("grep -c '>' $global_tmp_fasta");
+    my $num_seq = run("grep -c '^>' $global_tmp_fasta");
 
     print "total sequences to blast: $num_seq\n";
     if ($threads > 1)
