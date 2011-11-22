@@ -258,7 +258,7 @@ sub combineGffs {
         my $gff_str = "";
         foreach my $gff (@gffs)
         {
-            $gff_str .= catfile( $current_folder, $gff ) . ",";
+            $gff_str .= catfile( $current_folder, basename($gff) ) . ",";
         }
 
         # take off the last comma
