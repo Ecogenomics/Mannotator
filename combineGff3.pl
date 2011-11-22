@@ -105,34 +105,38 @@ my @gff_fns = split /,/, $options->{'gffs'};
 
 foreach my $gff3 (@gff_fns)
 {
-    # specify input via -fh or -file
-    if (-e $gff3) {
-        my $gffio = Bio::Tools::GFF->new(-file => $gff3, -gff_version => 3);
-        my $features_used = 0;
 
-        my $ins_ref = \$global_gff_list;
-        # loop over the input stream
-        while(my $feat = $gffio->next_feature()) {
-        
-            # filter here
-            next if(abs($feat->start - $feat->end) < $global_min_orf_cutoff);
-
-            # then insert
-            $ins_ref = insertFeature($ins_ref, \$feat);
-       }
-    
-       # clean up
-        $gffio->close();
-    
-        # recored keeping
-        $global_gff_used_list{$gff3} = $features_used;
+    if (not -e $gff3) {
+        die "Error: Could not read GFF file $gff3\n$!\n";
     }
+
+    # specify input via -fh or -file
+    my $gffio = Bio::Tools::GFF->new(-file => $gff3, -gff_version => 3);
+    my $features_used = 0;
+
+    my $ins_ref = \$global_gff_list;
+    # loop over the input stream
+    while(my $feat = $gffio->next_feature()) {
+        
+        # filter here
+        next if(abs($feat->start - $feat->end) < $global_min_orf_cutoff);
+
+        # then insert
+        $ins_ref = insertFeature($ins_ref, \$feat);
+    }
+    
+    # clean up
+    $gffio->close();
+    
+    # record keeping
+    $global_gff_used_list{$gff3} = $features_used;
 }
 
 # print to the output file
 print $out_fh "##gff-version 3\n";
 my $gffio = Bio::Tools::GFF->new(-gff_version => 3);
 my $list_handle_ref = \$global_gff_list;
+
 while(1 == nextInList(\$list_handle_ref))
 {
     my $current_node = ${$list_handle_ref};
@@ -142,19 +146,19 @@ while(1 == nextInList(\$list_handle_ref))
     my @gff_bits = split /\t/, $gff_string;
     
     # for rast annotated genes, we just need to get the hypothetical proteins
+    my $seq_entry = ">".$gff_bits[0]."_".$current_node->GO_start."_".$current_node->GO_end."\n".
+                    $global_seq->subseq($current_node->GO_start, $current_node->GO_end)."\n";
     if($gff_bits[1] eq "FIG")
     {
         if($gff_bits[8] =~ /hypothetical/) 
         { 
-        print $ann_fh ">".$gff_bits[0]."_".$current_node->GO_start."_".$current_node->GO_end."\n";
-            print $ann_fh $global_seq->subseq($current_node->GO_start, $current_node->GO_end)."\n"; 
+            print $ann_fh $seq_entry;
         }
     }
     # for all else, just grab it
     else
     {
-        print $ann_fh ">".$gff_bits[0]."_".$current_node->GO_start."_".$current_node->GO_end."\n";
-        print $ann_fh $global_seq->subseq($current_node->GO_start, $current_node->GO_end)."\n"; 
+        print $ann_fh $seq_entry;
     }
     # check to see if we'll need to do some annotation afterwards...
     print $out_fh "$gff_string\n";
