@@ -245,6 +245,7 @@ sub splitFasta {
     }
 }
 
+
 sub combineGffs {
     #-----
     # Wrapper to combine multiple orf calls into one gff
@@ -253,12 +254,13 @@ sub combineGffs {
     my @gffs = split /,/, $options->{'gffs'};
     foreach my $current_folder (keys %global_tmp_folders)
     {
+
         my $gff_str = "";
         foreach my $gff (@gffs)
         {
-            $gff_str .= catfile( $current_folder, $gff) . ",";
+            $gff_str .= catfile( $current_folder, $gff ) . ",";
         }
-        
+
         # take off the last comma
         $gff_str =~ s/,$//;
         
@@ -272,6 +274,7 @@ sub combineGffs {
         cat( $unknowns_file, $global_tmp_fasta );
     }
 }
+
 
 sub worker {
 	my ($in_fasta, $out_blast) = @_;
@@ -385,6 +388,7 @@ sub splitBlastResults {
     }
 }
 
+
 sub annotate {
     #-----
     # call out to blast2ann.pl
@@ -462,8 +466,8 @@ sub annotate {
     }
 
     close $out_fh;
-
 }
+
 
 sub cleanTmps {
     #-----
@@ -495,6 +499,7 @@ sub cleanTmps {
     }
 }
 
+
 # stolen from blast2ann.pl
 sub loadU2A() {
     #-----
@@ -520,6 +525,7 @@ sub loadU2A() {
     close $U2A_fh;
     print "done.  Loaded ".keys(%global_U2A_hash)." ID to annotations records\n";
 }
+
 
 sub generateAnnotations() {
     #-----
@@ -669,7 +675,9 @@ sub run {
    # Run a command, check that it completed successfully and return its output
    my ($cmd) = @_;
    my $results = `$cmd`;
-   die "Error: Command '$cmd' failed\n$!\n" if ($? == -1);
+   # In theory, a return status of -1 is an error, but in practice, other values
+   # are also errors. A return status of 0 seems to be ok though.
+   die "Error: Command '$cmd' failed with return status $?\n$!\n" if ($? != 0);
    return $results;
 }
 
