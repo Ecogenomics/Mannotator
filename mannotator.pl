@@ -289,36 +289,41 @@ sub blastUnknowns {
     # first blast them
     my $num_seq = count_fasta_sequences($global_tmp_fasta);
 
-    print "Number of sequences to blast: $num_seq\n";
+    print "$num_seq sequences to BLAST in $global_tmp_fasta\n";
     if ($threads > 1)
     {
     	my $num_seq_per_file = int ($num_seq / $threads);
     	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
     	print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
-    	my $i = 1;
-    	my $j = 0;
-    	while ($i < $threads)
-    	{
-    		# open a file to hold a chunk
-                my $out_file = $global_tmp_fasta."_".$i;
-		open (my $ch, ">", $out_file) or die "Error: Could not write file $out_file\n$!\n";
-		while(my $fasta = $seqio_global->next_seq())
-		{
-       			last if $j > $num_seq_per_file;
-              		print $ch ">".$fasta->primary_id."\n".$fasta->seq()."\n";
-     			$j++;
-		}
-            	close $ch;
-            	$i++;
-    	}
-        my $out_file = $global_tmp_fasta."_".$i;
-    	open (my $ch, ">",$out_file) or die "Error: Could not write file $out_file\n$!\n";
-    	while(my $fasta = $seqio_global->next_seq())
-	{
-        	print $ch ">".$fasta->primary_id."\n".$fasta->seq()."\n";
-	}
-   	close $ch;
 
+        # Open output files
+        my @out_fhs;
+        for my $i (1 .. $threads)
+        {
+            my $seqio_out = Bio::SeqIO->new(
+                -file   => '>'.$global_tmp_fasta.'_'.$i,
+                -format => 'fasta',
+                -flush  => 0, # go as fast as we can!
+            );
+            push @out_fhs, $seqio_out;
+        }
+
+        # Distribute sequences equally in output files
+        my $i = 1;
+        while (my $seq = $seqio_global->next_seq())
+        {
+            my $out_fh = $out_fhs[$i-1];
+            $out_fh->write_seq($seq);
+            $i = ($i == $threads) ? 1 : $i + 1;
+        }
+
+        # Close output files
+        for my $out_fh (@out_fhs)
+        {
+            $out_fh->close;
+        }
+
+        # BLAST the sequences
    	for my $i (1 .. $threads) 
    	{
 	     	print "Spawning BLAST worker $i (out of $threads)\n";
@@ -328,7 +333,8 @@ sub blastUnknowns {
    	}
             
         $_->join() for threads->list();
-		
+
+        # Put all blast results in a unique file
 	for my $i (1 .. $threads)
 	{
 		cat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
