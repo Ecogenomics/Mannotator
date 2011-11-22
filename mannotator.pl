@@ -174,6 +174,12 @@ sub splitGffs {
         my $gff_def = <$gff_fh>;
         while(<$gff_fh>)
         {
+
+            # ##FASTA section indicates end of ##gff section
+            if ($_ =~ m/^##FASTA/i) {
+               last;
+            }
+
             # comment lines split sequences
             if ($_ =~ m/^#(.*)$/) {
                 my $prodigal_seqname = prodigal_seqname($1);
@@ -257,10 +263,9 @@ sub combineGffs {
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
         run("combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file");
-        
+ 
         # move the unknowns onto the pile
         cat( $unknowns_file, $global_tmp_fasta );
-
     }
 }
 
