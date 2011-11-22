@@ -188,8 +188,12 @@ sub splitGffs {
             }
             
             my @bits = split /\t/, $_;
-
-            my $fasta_header = defined $true_fasta_header ? $true_fasta_header : $bits[0];
+            my $fasta_header = $bits[0];
+            if (defined $true_fasta_header)
+            {
+                $fasta_header = $true_fasta_header;
+                s/^(.+?)\t/$true_fasta_header\t/;
+            }
 
             if($fasta_header ne $current_fasta_header)
             {
@@ -263,7 +267,7 @@ sub combineGffs {
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
         run("combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file");
- 
+
         # move the unknowns onto the pile
         cat( $unknowns_file, $global_tmp_fasta );
     }
