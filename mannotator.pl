@@ -426,9 +426,9 @@ sub annotate {
         next if($#blast_files == -1);
 		if (scalar @blast_files == 0)
 		{
-			warn "Warning: hmm... this is strange...\nthere does not seem to be any blast output files in $current_folder\n";
+			warn "Warning: hmm... this is strange...\nthere does not seem to be any BLAST output files in $current_folder\n";
 		}
-        # parse the blast results and report the GO predictions
+        # parse the blast results and report the predictions
         &generateAnnotations($current_folder, @blast_files);
 		
         # insert these new values into the GFF3 file
@@ -452,15 +452,13 @@ sub annotate {
     foreach my $current_folder (keys %global_tmp_folders)
     {
         my $annotated_file = catfile( $current_folder, "annotated.gff3" );
-        if(open my $this_gff3, "<", $annotated_file)
+        open my $this_gff3, '<', $annotated_file or die "Error: Could not read file $annotated_file\n$!\n";
+        while(<$this_gff3>)
         {
-            while(<$this_gff3>)
-            {
-                next if $_ =~ /^#/;
-                print $out_fh $_;
-            }
-            close $this_gff3;
+            next if $_ =~ /^#/;
+            print $out_fh $_;
         }
+        close $this_gff3;
     }
 
     # finally, embed the FASTA sequences in the GFF file
@@ -552,9 +550,7 @@ sub generateAnnotations() {
             -format => 'blastTable',
             -file => $blast_file
         );
-        
-        my $query_name = undef;
-        
+       
         # get all the accessions with a significance less than $global_evalue_cutoff
         while( my $result = $in->next_result ) 
         {
@@ -648,26 +644,17 @@ sub recombineGff3() {
         my $gff_string = $feat->gff_string($gffio_in);
         my @gff_bits = split /\t/, $gff_string;
         my $feat_key = $gff_bits[0]."_".$feat->start."_".$feat->end;
-        if(exists $global_annotations_hash{$feat_key})
+        my $annotation = $global_annotations_hash{$feat_key};
+        if( (defined $annotation) && ($annotation ne '__DOOF') )
         {
-            # this is a bit dodge...
-            # earlier, I put __DOOF in place of any null annotations
-            if("__DOOF" ne $global_annotations_hash{$feat_key})
-            {
-                $gff_bits[8] =~ s/: hypothetical protein//;
-                $gff_bits[8] = $gff_bits[8].$global_annotations_hash{$feat_key};
-                $gff_bits[8] = gff_collapse_tags($gff_bits[8]);
-                print $ann_fh (join "\t", @gff_bits)."\n";
-            }
-            else
-            {
-                print $ann_fh "$gff_string\n";
-            }
+            # this is a bit dodge... earlier, I put __DOOF in place of any null annotations
+            $gff_bits[8]  =~ s/: hypothetical protein//;
+            $gff_bits[8] .= ';' if $annotation !~ m/^;/;
+            $gff_bits[8] .= $annotation;
+            $gff_bits[8]  = gff_collapse_tags($gff_bits[8]);
+            $gff_string   = join "\t", @gff_bits;
         }
-        else
-        {
-            print $ann_fh "$gff_string\n";
-        }
+        print $ann_fh "$gff_string\n";
     }
     # clean up
     $gffio_in->close();
