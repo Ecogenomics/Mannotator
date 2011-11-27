@@ -76,6 +76,7 @@ if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; 
 
 my $threads = 1;
 if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
+
 #
 # Step 1a. Split down the Gff3 files into multiple folders
 #
@@ -286,6 +287,10 @@ sub blastUnknowns {
     #-----
     # Blast unknowns against the Uniref or Nr protein database
     #
+
+    # Skip BLAST if a BLAST result file was provided
+    return 1 if $options->{'sims'};
+
     # first blast them
     my $num_seq = count_fasta_sequences($global_tmp_fasta);
 
