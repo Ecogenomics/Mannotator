@@ -482,17 +482,17 @@ sub annotate {
 
 sub cleanTmps {
     #-----
-    # clean up all the tmp files we maded
+    # clean up all the tmp files we added
     #
     my ($keep_bx) = @_;
     foreach my $current_folder (keys %global_tmp_folders)
     {
         remove_tree( $current_folder );
     }
- 
+
     unlink $global_tmp_fasta or die "Error: Could not delete file $global_tmp_fasta\n$!\n";
-    
-    if ($threads > 1)
+   
+    if ( (not $options->{'sims'}) && ($threads > 1) )
     {
     	for (my $i = 1; $i <= $threads; $i++)
     	{
