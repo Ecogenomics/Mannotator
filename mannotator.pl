@@ -757,7 +757,7 @@ sub checkParams {
          "three|3+",
          "four|4+",
          "five|5+",
-         "seq_embed|s",
+         "seq_embed|d",
     );
     my %options;
 
@@ -862,7 +862,7 @@ __DATA__
       -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
       -i2a -i FILE                 ID to annotations mapping :file
 
-      [-seq_embed -s]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
+      [-seq_embed -d]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
       [-threads -t]                Number of blast jobs to run [default: 1]
       [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -b BLAST TYPE]   The type of blast to run [default: blastx]
