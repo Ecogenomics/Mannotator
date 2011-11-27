@@ -67,8 +67,8 @@ if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
 my $global_evalue_cutoff = 0.000000001;
 if(exists $options->{'evalue'}) { $global_evalue_cutoff = $options->{'evalue'}; }
 
-#results cut off
-my $global_results_max_cut_off = 1;
+# results cut off
+my $global_results_max_cut_off = 1; # use the top hit only
 
 #blast program to run
 my $blast_program = "blastx";
@@ -532,7 +532,7 @@ sub loadU2A() {
         $global_U2A_hash{$data[0]} = $data[1];
     }
     close $U2A_fh;
-    print "done.  Loaded ".keys(%global_U2A_hash)." ID to annotations records\n";
+    print "done.  Loaded ".scalar(keys(%global_U2A_hash))." ID to annotations records\n";
 }
 
 
@@ -559,20 +559,16 @@ sub generateAnnotations() {
             my %ogs_done = ();
             while( my $hit = $result->next_hit ) 
             {
-                last if($num_hits_done > $global_results_max_cut_off);
+                # Assume that the BLAST results are sorted by increasing E-value
+                # i.e. that the first hit we encounter is the best one.
+                last if $num_hits_done > $global_results_max_cut_off;
                 my $hit_name = $hit->name;
                 $hit_name =~ s/UniRef90_([^ ]*).*/$1/;
-                if("Unknown" ne $hit_name)
-                {
-                    if ($hit->significance <= $global_evalue_cutoff) 
-                    {
-                        if(exists $global_U2A_hash{$hit_name})
-                        {
-                            $tmp_ann = $global_U2A_hash{$hit_name};
-                            $num_hits_done++;
-                        }
-                    }
-                }
+                next if $hit_name eq 'Unknown';
+                next if $hit->significance > $global_evalue_cutoff;
+                next if not exists $global_U2A_hash{$hit_name};
+                $tmp_ann = $global_U2A_hash{$hit_name};
+                $num_hits_done++;
             }
             $global_annotations_hash{$result->query_name} = gff_escape_chars($tmp_ann);
         }
