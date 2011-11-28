@@ -76,9 +76,9 @@ The pipeline consists of one data file, two perl scripts which do the work and o
 
 Running the Mannotator will take a while, so perhaps you should use nohup or screen. The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
 
-$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb uniref -i2a Uniref_mappings.txt -seqembed
+$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb uniref -i2a Uniref_mappings.txt -seq_embed
 
-$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb nr -i2a Nr_mappings.txt -seqembed
+$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb nr -i2a Nr_mappings.txt -seq_embed
 
 Where the uniref file can be found (on Eury) at:
 

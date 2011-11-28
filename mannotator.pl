@@ -841,7 +841,7 @@ __DATA__
     mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
 
       -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
-      -contigs -c FILE             Contigs to be annotated...
+      -contigs -c FILE             FASTA file of contigs to be annotated...
       -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
       -i2a -i FILE                 ID to annotations mapping :file
 
