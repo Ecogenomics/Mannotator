@@ -854,43 +854,43 @@ __DATA__
 
 =head1 DESCRIPTION
 
-#    
-#    STEPS:
-#
-#    BEFORE YOU RUN THE MANOTATOR!
-#    
-#    1a. Send entire genome out to RAST server.
-#    1b. Run entire genome though prodigal
-#    
-#    You now have 2 gff3 files...
-#
-#    NOW, UNLEASH THE MANOTATOR!
-#
+    
+    STEPS:
+
+    BEFORE YOU RUN THE MANOTATOR!
+    
+    1a. Send entire genome out to RAST server.
+    1b. Run entire genome though prodigal
+    
+    You now have 2 gff3 files...
+
+    NOW, UNLEASH THE MANOTATOR!
+
 
 =head1 SYNOPSIS
 
     mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
 
-      -gffs -g FILE[,FILE]         List of gff3 files in order of trust!
-      -contigs -c FILE             FASTA file of contigs to be annotated...
-      -protdb -p LOCATION          Location of the UniRef or Nr BLAST database
-      -i2a -i FILE                 ID to annotations mapping :file
+       -gffs      -g FILE[,FILE]   List of gff3 files in order of trust!
+       -contigs   -c FILE          FASTA file of contigs to be annotated...
+       -protdb    -p LOCATION      Location of the UniRef or Nr BLAST database
+       -i2a       -i FILE          ID to annotations mapping :file
 
-      [-seq_embed -d]              Embed sequences into GFF files (useful to view the annotation in Artemis)     
-      [-threads -t]                Number of blast jobs to run [default: 1]
-      [-flatfile -f]               Optionally create multiple genbank files for your contigs [default: do not create]
+      [-seq_embed -d           ]   Embed sequences into GFF files (useful to view the annotation in Artemis)     
+      [-threads   -t INTEGER   ]   Number of blast jobs to run [default: 1]
+      [-flatfile  -f           ]   Optionally create multiple genbank files for your contigs [default: do not create]
       [-blast_prg -b BLAST TYPE]   The type of blast to run [default: blastx]
-      [-evalue -e DECIMAL]         E-value cut off for blastx [default: 0.000000001]
-      [-out -o FILE]               Filename of the final gff3 file [default: mannotatored.gff3]
-      [-keep -k]                   Keep all the tmp directories
-      [-blastx -x]                 Keep only the blastx file (overrides -k option)
-      [-sims -s FILE]              Use BLAST similarities given in this file
-      [-one]                       Skip step 1 of Mannotator
-      [-two]                       Skip step 2 of Mannotator
-      [-three]                     Skip step 3 of Mannotator
-      [-four]                      Skip step 4 of Mannotator
-      [-five]                      Skip step 5 of Mannotator
-      [-help -h]                   Displays basic usage information
+      [-evalue    -e DECIMAL   ]   E-value cut off for blastx [default: 0.000000001]
+      [-out       -o FILE      ]   Filename of the final gff3 file [default: mannotatored.gff3]
+      [-keep      -k           ]   Keep all the tmp directories
+      [-blastx    -x           ]   Keep only the blastx file (overrides -k option)
+      [-sims      -s FILE      ]   Use BLAST similarities given in this file
+      [-one                    ]   Skip step 1 of Mannotator
+      [-two                    ]   Skip step 2 of Mannotator
+      [-three                  ]   Skip step 3 of Mannotator
+      [-four                   ]   Skip step 4 of Mannotator
+      [-five                   ]   Skip step 5 of Mannotator
+      [-help      -h           ]   Displays basic usage information
          
 =cut
 
