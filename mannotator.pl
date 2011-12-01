@@ -175,7 +175,12 @@ sub splitGffs {
         my $current_fasta_header = "__DOOF";
         my $true_fasta_header = undef;
         open my $gff_fh, "<", $gff or die "Error: Could not read file $gff\n$!\n";
+
         my $gff_def = <$gff_fh>;
+        if ($gff_def !~ m/^##gff-version\s+3/i) {
+           die "Error: File $gff does not seem to be a valid GFF file\nDid not see header line: ##gff-version 3\n";
+        }
+
         while(<$gff_fh>)
         {
 
@@ -193,6 +198,7 @@ sub splitGffs {
             
             my @bits = split /\t/, $_;
             my $fasta_header = $bits[0];
+
             if (defined $true_fasta_header)
             {
                 $fasta_header = $true_fasta_header;
@@ -241,7 +247,7 @@ sub splitFasta {
     my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => "fasta");
     while (my $seq = $seqio_object->next_seq)
     {
-        my $seq_fn = catfile( $seq->display_id(), "sequence.fa" );
+        my $seq_fn = catfile( $seq->display_id(), 'sequence.fa' );
         open my $ffh, '>', $seq_fn or die "Error: Could not write file $seq_fn\n$!\n";
         print $ffh ">" . $seq->display_id() . "\n";
         print $ffh $seq->seq(). "\n";
