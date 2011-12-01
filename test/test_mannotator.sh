@@ -1,21 +1,27 @@
 #! /bin/bash
 
-# Give a FASTA contig file as first arg, a RAST GFF file as second arg
-#CONTIGS_FASTA=$1
-#RAST_GFF=$2
-
 module load blast/2.2.22
 
 CONTIGS_FASTA=contigs.fa
 PRODIGAL_GFF=contigs_prodigal.gff
+THREADS=4
 
-PROTDB=/srv/whitlam/bio/db/ncbi/nr
-I2A=/srv/whitlam/bio/db/mannotator/Nr201108_mappings.txt
-THREADS=14
-#THREADS=1
 
-# Now Mannotator for the annotation
-CMD="mannotator.pl -gffs ${PRODIGAL_GFF} -contigs ${CONTIGS_FASTA} -protdb ${PROTDB} -i2a ${I2A} -seq_embed -threads $THREADS"
+# Mannotator using nr
+echo "Running Mannotator with the nr database..."
+PROTDB=./db/Nr_truncated
+I2A=./db/Nr_mappings_truncated.txt
+OUT=mannotatored_nr.gff
+CMD="mannotator.pl -gffs ${PRODIGAL_GFF} -contigs ${CONTIGS_FASTA} -protdb ${PROTDB} -i2a ${I2A} -seq_embed -threads $THREADS -blastx -out $OUT"
+echo $CMD
+eval $CMD
 
+
+# Mannotator using uniref
+echo "Running Mannotator with the uniref database..."
+PROTDB=./db/Uniref_truncated
+I2A=./db/Uniref_mappings_truncated.txt
+OUT=mannotatored_uniref.gff
+CMD="mannotator.pl -gffs ${PRODIGAL_GFF} -contigs ${CONTIGS_FASTA} -protdb ${PROTDB} -i2a ${I2A} -seq_embed -threads $THREADS -blastx -out $OUT"
 echo $CMD
 eval $CMD
