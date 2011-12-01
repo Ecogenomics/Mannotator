@@ -119,7 +119,7 @@ unless ($options->{'four'})
 #
 unless ($options->{'five'})
 {
-    print "Step 5: Annotating using the blast results\n";
+    print "Step 5: Annotating using the BLAST results\n";
     annotate();
 }
 
@@ -301,7 +301,7 @@ sub blastUnknowns {
     {
         my $num_seq_per_file = int ($num_seq / $threads);
         my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
-        print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
+        print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequence(s) per file\n";
 
         # Open output files
         my @out_fhs;
@@ -331,21 +331,22 @@ sub blastUnknowns {
         }
 
         # BLAST the sequences
-        for my $i (1 .. $threads) 
+        my @blast_files;
+        for my $i (1 .. $threads)
         {
             print "Spawning BLAST worker $i (out of $threads)\n";
             my $q = $global_tmp_fasta."_".$i;
             my $o = "$global_tmp_fasta.$i.$blast_program";
             threads->new(\&worker, $q, $o);
-
+            push @blast_files, $o;
         }
             
         $_->join() for threads->list();
 
         # Put all blast results in a unique file
-        for my $i (1 .. $threads)
+        for my $blast_file (@blast_files)
         {
-            concat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
+            concat( $blast_file, "$global_tmp_fasta.$blast_program" );
         }
 
     }
