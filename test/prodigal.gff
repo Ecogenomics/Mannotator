@@ -1,5 +1,6 @@
 ##gff-version  3
 contig_001	Prodigal_v2.50	CDS	7	190	46.7	-	0	ID=23_33;partial=00;start_type=ATG;rbs_motif=TAAA;rbs_spacer=9bp;score=45.90;cscore=41.10;sscore=4.80;rscore=1.89;uscore=0.10;tscore=3.47
+contig_002	Prodigal_v2.50	CDS	1	240	132	-	0	ID=23_33;partial=00;start_type=ATG;rbs_motif=TAAA;rbs_spacer=9bp;score=45.90;cscore=41.10;sscore=4.80;rscore=1.89;uscore=0.10;tscore=3.47
 # Sequence Data: seqnum=23;seqlen=74223;seqhdr="NODE_551_length_74189_cov_12.129008 len=1234"
 # Model Data: version=Prodigal.v2.50;run_type=Metagenomic;model="15|Candidatus Amoebophilus asiaticus 5a2 chromosome, complete genome.|B|35.0|11|0";gc_cont=35.00;transl_table=11;uses_sd=0
 NODE_551_length_74189_cov_12.129008	Prodigal_v2.50	CDS	23858	24286	46.5	-	0	ID=23_34;partial=00;start_type=ATG;rbs_motif=TAAA;rbs_spacer=9bp;score=45.90;cscore=41.10;sscore=4.80;rscore=1.89;uscore=0.10;tscore=3.47

@@ -3,7 +3,7 @@
 module load blast/2.2.22
 
 CONTIGS_FASTA=contigs.fa
-PRODIGAL_GFF=contigs_prodigal.gff
+PRODIGAL_GFF=prodigal.gff
 THREADS=4
 
 

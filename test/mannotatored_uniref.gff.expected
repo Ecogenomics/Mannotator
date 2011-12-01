@@ -1,9 +1,14 @@
+##gff-version  3
+NODE_551_length_74189_cov_12.129008	Prodigal_v2.50	CDS	23858	24286	46.5	-	0	ID=23_34;cscore=41.10;partial=00;rbs_motif=TAAA;rbs_spacer=9bp;rscore=1.89;sscore=4.80;start_type=ATG;tscore=3.47;uscore=0.10
+NODE_551_length_74189_cov_12.129008	Prodigal_v2.50	CDS	25000	25400	39.3	-	0	ID=23_35;cscore=41.10;partial=00;rbs_motif=TAAA;rbs_spacer=9bp;rscore=1.89;sscore=4.80;start_type=ATG;tscore=3.47;uscore=0.10
+contig_001	Prodigal_v2.50	CDS	7	190	46.7	-	0	ID=23_33;cscore=41.10;partial=00;rbs_motif=TAAA;rbs_spacer=9bp;rscore=1.89;sscore=4.80;start_type=ATG;tscore=3.47;uscore=0.10
+contig_002	Prodigal_v2.50	CDS	1	240	132	-	0	rbs_motif=TAAA;cscore=41.10;ID=23_33;tscore=3.47;start_type=ATG;rbs_spacer=9bp;partial=00;db_xref=Uniprot:E1RJS3;uscore=0.10;rscore=1.89;sscore=4.80;Ontology_term=KEGG_ID:mpi:Mpet_0953 KEGG_ONTOLOGY:ko:K07315
+##FASTA
 >contig_001 matches nr
-aaatttgggccc
-gcgcagcagcgccgcggcggctttaaacgccgcaaaaaagtggattttattgcggcgaac
-aaaattgaagtggtggattataaagataccgaactgctgaaacgctttattagcgaacgc
-ggcaaaattctgccgcgccgcgtgaccggcaccagcgcgaaaaaccagcgcaaagtggtg
-aaatttgggccc
+aaatttgggcccgcgcagcagcgccgcggcggctttaaacgccgcaaaaaagtggatttt
+attgcggcgaacaaaattgaagtggtggattataaagataccgaactgctgaaacgcttt
+attagcgaacgcggcaaaattctgccgcgccgcgtgaccggcaccagcgcgaaaaaccag
+cgcaaagtggtgaaatttgggccc
 >contig_002 matches uniref
 gtggcgatggaaagcctgcagatgctgattattctggcgatggtgaaaccgccggaaatt
 gcgtttgaaattgtgagctttgcggcgattccgatgattattgcgaacgtgattggcatt
