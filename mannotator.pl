@@ -30,7 +30,7 @@ use warnings;
 #perl modules
 use File::Path qw( remove_tree make_path ) ;
 use File::Basename;
-use File::Spec::Functions; # catfile
+use File::Spec::Functions qw( :ALL ); # catfile
 use Getopt::Long;
 use Bio::SeqIO;
 use Bio::Seq;
@@ -78,48 +78,51 @@ my $threads = 1;
 if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
 
 #
-# Step 1a. Split down the Gff3 files into multiple folders
+# Step 1. Split down the GFF3 and FASTA files into multiple folders
 #
 unless ($options->{'one'})
 {
-print "Step 1a: Splitting gffs and making tmp directories\n";
-splitGffs();
-
-#
-# Step 1b. Split down the fasta file and also put into the same folders
-#
-print "Step 1b: Splitting fasta\n";
-splitFasta();
+    print "Step 1: Splitting GFF and FASTA files into temporary directories\n";
+    splitGffs();
+    splitFasta();
 }
+
 #
 # Step 2. For each folder, combine the gff files and produce a list of sequences to be blasted!
 #
 unless($options->{'two'})
 {
-print "Step 2: Combining Gffs\n";
-combineGffs();
+    print "Step 2: Combining Gffs\n";
+    combineGffs();
 }
+
 #
 # Step 3. Blast the unknowns against UniRef or Nr proteic database
 #
 unless ($options->{'three'})
 {
-print "Step 3: Blasting unknown ORFs against protein database... This could take some time. Perhaps you need a coffee?\n";
-blastUnknowns();
+    print "Step 3: Blasting unknown ORFs against protein database... This could take some time. Perhaps you need a coffee?\n";
+    blastUnknowns();
 }
+
+#
+# Step 4. Splitting the BLAST results
+#
 unless ($options->{'four'})
 {
-print "Step 4: Splitting Blast results\n";
-splitBlastResults();
+    print "Step 4: Splitting BLAST results\n";
+    splitBlastResults();
 }
+
 #
-# Step 4. Annotate the GFFs using blast results and re-combine!
+# Step 5. Annotate the GFFs using BLAST results and re-combine!
 #
 unless ($options->{'five'})
 {
-print "Step 5: Annotating using the blast results\n";
-annotate();
+    print "Step 5: Annotating using the blast results\n";
+    annotate();
 }
+
 #
 # Finally, remove all the temp directories (if we need to)
 #
@@ -130,13 +133,13 @@ if(exists $options->{'blastx'})
 }
 elsif(!exists $options->{'keep'})
 {
-        print "Cleaning up tmp folders\n";
-        cleanTmps(0);
+    print "Cleaning up tmp folders\n";
+    cleanTmps(0);
 }
 
 if(exists $options->{'flatfile'})
 {
-	createFlatFile();
+    createFlatFile();
 }
 
 
@@ -272,34 +275,33 @@ sub combineGffs {
         run("combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file");
 
         # move the unknowns onto the pile
-        cat( $unknowns_file, $global_tmp_fasta );
+        concat( $unknowns_file, $global_tmp_fasta );
     }
 }
 
 
 sub worker {
-	my ($in_fasta, $out_blast) = @_;
-	run("blastall -p $blast_program -i $in_fasta -d $options->{'protdb'} -o $out_blast -m 8");
+    my ($in_fasta, $out_blast) = @_;
+    run("blastall -p $blast_program -i $in_fasta -d $options->{'protdb'} -o $out_blast -m 8");
 }
 
 
 sub blastUnknowns {
     #-----
-    # Blast unknowns against the Uniref or Nr protein database
+    # BLAST unknowns against the Uniref or Nr protein database
     #
 
     # Skip BLAST if a BLAST result file was provided
     return 1 if $options->{'sims'};
 
-    # first blast them
+    # BLAST them
     my $num_seq = count_fasta_sequences($global_tmp_fasta);
-
     print "$num_seq sequences to BLAST in $global_tmp_fasta\n";
     if ($threads > 1)
     {
-    	my $num_seq_per_file = int ($num_seq / $threads);
-    	my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
-    	print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
+        my $num_seq_per_file = int ($num_seq / $threads);
+        my $seqio_global = Bio::SeqIO->new(-file => $global_tmp_fasta, -format => 'fasta');
+        print "Splitting $global_tmp_fasta into $threads parts, $num_seq_per_file sequences per file\n";
 
         # Open output files
         my @out_fhs;
@@ -329,22 +331,23 @@ sub blastUnknowns {
         }
 
         # BLAST the sequences
-   	for my $i (1 .. $threads) 
-   	{
-	     	print "Spawning BLAST worker $i (out of $threads)\n";
-     		my $q = $global_tmp_fasta."_".$i;
-        	my $o = "$global_tmp_fasta.$i.$blast_program";
-     		threads->new(\&worker, $q, $o);
-   	}
+        for my $i (1 .. $threads) 
+        {
+            print "Spawning BLAST worker $i (out of $threads)\n";
+            my $q = $global_tmp_fasta."_".$i;
+            my $o = "$global_tmp_fasta.$i.$blast_program";
+            threads->new(\&worker, $q, $o);
+
+        }
             
         $_->join() for threads->list();
 
         # Put all blast results in a unique file
-	for my $i (1 .. $threads)
-	{
-		cat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
-	}
-		
+        for my $i (1 .. $threads)
+        {
+            concat( "$global_tmp_fasta.$i.$blast_program", "$global_tmp_fasta.$blast_program" );
+        }
+
     }
     else
     {
@@ -354,21 +357,24 @@ sub blastUnknowns {
 
 
 sub splitBlastResults {
-
-    # now split them across multiple folders...
+    # now split BLAST Results across multiple folders...
     my $current_dir_name = "__DOOF";
     my $current_file_handle;
     my $blast_results;
     
+    # Determine input file
     if ($options->{'sims'})
     {
-    open $blast_results, "<", $options->{'sims'} or die "Error: Could not read file $blast_results\n$!\n";
+        open $blast_results, "<", $options->{'sims'} or die "Error: Could not read file $blast_results\n$!\n";
     }
     else
     {
         my $blast_file = "$global_tmp_fasta.$blast_program";
-    	open $blast_results, "<", $blast_file or die "Error: Could not read file $blast_file\n$!\n";
+        open $blast_results, "<", $blast_file or die "Error: Could not read file $blast_file\n$!\n";
     }
+
+    # Let the splitting occur
+    my $unknown_filename = "unknowns.$blast_program";
     while(<$blast_results>)
     {
         # split the line, we need to know where to put this guy
@@ -386,8 +392,8 @@ sub splitBlastResults {
                 # we have a file to close
                 close $current_file_handle;
             }
-            my $unknown_file = catfile( $dir_name, "unknowns.$blast_program" );
-            open $current_file_handle, ">", $unknown_file or die "Error: Could not write file $unknown_file\n$!\n";
+            my $unknown_filepath = catfile( $dir_name, $unknown_filename );
+            open $current_file_handle, ">", $unknown_filepath or die "Error: Could not write file $unknown_filepath\n$!\n";
             $current_dir_name = $dir_name;
         }
         print $current_file_handle $_;
@@ -397,6 +403,24 @@ sub splitBlastResults {
         # we have a file to close
         close $current_file_handle;
     }
+
+
+    # If there are not BLAST hits, just create an empty file
+    for my $tmp_folder (keys %global_tmp_folders) {
+        my $unknown_filepath = catfile( $tmp_folder, $unknown_filename );
+        if (not -e $unknown_filepath) {
+            touch($unknown_filepath);
+        }
+    }
+
+}
+
+
+sub touch {
+    my ($file) = @_;
+    open my $fh, '>', $file or die "Error: Could not write file $file\n$!\n";
+    close $fh;
+    return 1;
 }
 
 
@@ -415,22 +439,20 @@ sub annotate {
     foreach my $current_folder (keys %global_tmp_folders)
     {
         
-        # get the blast results:
-        my @blast_files = ();
-        if (-d $current_folder) {
-            opendir(INDIR, $current_folder)
-            or die "Error: Could not read directory $current_folder\n$!\n";
-            @blast_files = grep /\.$blast_program$/, readdir (INDIR);
-            closedir (INDIR);
+        # get the blast results
+
+        my $pattern = catfile( $current_folder, "*.$blast_program" );
+        my @blast_files = glob $pattern;
+
+        # Even if there were no BLAST hits, we created an empty file
+        if (scalar @blast_files == 0)
+        {
+            die "Error: No BLAST file found in $current_folder\n";
         }
-        next if($#blast_files == -1);
-		if (scalar @blast_files == 0)
-		{
-			warn "Warning: hmm... this is strange...\nthere does not seem to be any BLAST output files in $current_folder\n";
-		}
+
         # parse the blast results and report the predictions
-        &generateAnnotations($current_folder, @blast_files);
-		
+        &generateAnnotations(@blast_files);
+
         # insert these new values into the GFF3 file
         my $combined_file  = catfile( $current_folder, "combined.gff3"  );
         my $annotated_file = catfile( $current_folder, "annotated.gff3" );
@@ -467,7 +489,8 @@ sub annotate {
         my $file = $options->{'contigs'};
         my $in  = Bio::SeqIO->new( -file => $file  , -format => 'fasta' ); 
         my $out = Bio::SeqIO->new( -fh   => $out_fh, -format => 'fasta' );
-        while (my $seq = $in->next_seq) {
+        while (my $seq = $in->next_seq)
+        {
             $out->write_seq($seq);
         }
         $in->close;
@@ -492,13 +515,13 @@ sub cleanTmps {
    
     if ( (not $options->{'sims'}) && ($threads > 1) )
     {
-    	for (my $i = 1; $i <= $threads; $i++)
-    	{
-    	my $global_fasta_chunk = $global_tmp_fasta."_".$i;
-        unlink $global_fasta_chunk or die "Error: Could not delete file $global_fasta_chunk\n$!\n";
-        my $other = "$global_tmp_fasta.$i.$blast_program";
-        unlink $other or die "Error: Could not delete file $other\n$!\n";
-    	}
+        for (my $i = 1; $i <= $threads; $i++)
+        {
+            my $global_fasta_chunk = $global_tmp_fasta."_".$i;
+            unlink $global_fasta_chunk or die "Error: Could not delete file $global_fasta_chunk\n$!\n";
+            my $other = "$global_tmp_fasta.$i.$blast_program";
+            unlink $other or die "Error: Could not delete file $other\n$!\n";
+        }
     }
     
     if($keep_bx == 0)
@@ -523,16 +546,17 @@ sub loadU2A() {
     
     my ($Uniprot2ANN_file) = @_;
     
-    print "Loading ID to annotations mapping file...";
+    print "Loading ID to annotations mapping file... ";
     
     open my $U2A_fh, "<", $Uniprot2ANN_file or die "Error: Could not read U2A file $Uniprot2ANN_file\n$!\n";
-    while (<$U2A_fh>) {
+    while (<$U2A_fh>)
+    {
         chomp $_;
         my @data = split(/\^/, $_);
         $global_U2A_hash{$data[0]} = $data[1];
     }
     close $U2A_fh;
-    print "done.  Loaded ".scalar(keys(%global_U2A_hash))." ID to annotations records\n";
+    print scalar(keys(%global_U2A_hash))." records loaded\n";
 }
 
 
@@ -540,12 +564,11 @@ sub generateAnnotations() {
     #-----
     # parse the blast results and report the predictions
     #
-    my ($current_folder, @blast_files) = @_;
+    my (@blast_files) = @_;
     
     foreach my $blast_file (@blast_files) 
     {
         # Load the result into memory
-        $blast_file = catfile( $current_folder, $blast_file );
         my $in = new Bio::SearchIO(
             -format => 'blastTable',
             -file => $blast_file
@@ -628,7 +651,7 @@ sub recombineGff3() {
     # blend the new annotations into the old
     #
     my ($gff3_in, $gff3_out) = @_;
-    
+
     # specify input via -fh or -file
     my $gffio_in = Bio::Tools::GFF->new(-file => $gff3_in, -gff_version => 3);
     open my $ann_fh, ">", $gff3_out or die "Error: Could not write file $gff3_out\n$!\n";
@@ -659,61 +682,68 @@ sub recombineGff3() {
 
 
 sub createFlatFile {
-	print "generating genbank files for contigs...";
-	my $cmd = run("gff2genbank.pl $options->{'c'} $global_output_file");
-	print "done\n";
+    print "generating genbank files for contigs...";
+    my $cmd = run("gff2genbank.pl $options->{'c'} $global_output_file");
+    print "done\n";
 }
 
 
 sub run {
-   # Run a command, check that it completed successfully and return its output
-   my ($cmd) = @_;
-   my $results = `$cmd`;
-   # In theory, a return status of -1 is an error, but in practice, other values
-   # are also errors. A return status of 0 seems to be ok though.
-   die "Error: Command '$cmd' failed with return status $?\n$!\n" if ($? != 0);
-   return $results;
+    # Run a command, check that it completed successfully and return its output
+    my ($cmd) = @_;
+    my $results = `$cmd`;
+    # In theory, a return status of -1 is an error, but in practice, other values
+    # are also errors. A return status of 0 seems to be ok though.
+    die "Error: Command '$cmd' failed with return status $?\n$!\n" if ($? != 0);
+    return $results;
 }
 
 
-sub cat {
-   # Concatenate or append file content (a single file name or an
-   # arrayref of filenames $in_files) into another file (scalar
-   # $out_file). If mode is '>', create/overwrite the output file,
-   # but if mode is '>>' (default), create/append.
-   my ($in_files, $out_file, $mode) = @_;
-   if (not defined $mode) {
-     $mode = '>>';
-   } 
-   if ($mode !~ /^>{1,2}$/) {
-      die "Error: Invalid cat mode $mode\n";
-   }
-   if (not ref $in_files) {
-      # Put single file into an array
-      $in_files = [ $in_files ];
-   }
-   open my $ofh, $mode, $out_file or die "Error: Could not write file $out_file\n$!\n";
-   for my $in_file (@$in_files) {
-      open my $ifh, '<', $in_file or die "Error: Could not open file $in_file\n$!\n";
-      while (my $line = <$ifh>) {
-         print $ofh $line;
-      }
-      close $ifh;
-   }
-   close $ofh;
-   return 1;
+sub concat {
+    # Concatenate or append file content (a single file name or an
+    # arrayref of filenames $in_files) into another file (scalar
+    # $out_file). If mode is '>', create/overwrite the output file,
+    # but if mode is '>>' (default), create/append. If del_input is 0,
+    # delete the input files after concatenation.
+    my ($in_files, $out_file, $mode, $del_input) = @_;
+    if (not defined $mode) {
+        $mode = '>>';
+    }
+    if (not defined $del_input) {
+        $del_input = 0;
+    } 
+    if ($mode !~ /^>{1,2}$/) {
+        die "Error: Invalid cat mode $mode\n";
+    }
+    if (not ref $in_files) {
+        # Put single file into an array
+        $in_files = [ $in_files ];
+    }
+    open my $ofh, $mode, $out_file or die "Error: Could not write file $out_file\n$!\n";
+    for my $in_file (@$in_files) {
+        open my $ifh, '<', $in_file or die "Error: Could not open file $in_file\n$!\n";
+        while (my $line = <$ifh>) {
+            print $ofh $line;
+        }
+        close $ifh;
+        if ($del_input == 1) {
+            unlink $in_file or die "Error: Could not remove file $in_file\n$!\n";
+        }
+    }
+    close $ofh;
+    return 1;
 }
 
 
 sub count_fasta_sequences {
-   my ($fasta_file) = @_;
-   my $count = 0;
-   open my $fh, '<', $fasta_file or die "Error: Could not read file $fasta_file\n$!\n";
-   while (my $line = <$fh>) {
-     $count++ if $line =~ m/^>/;
-   }
-   close $fh;
-   return $count;
+    my ($fasta_file) = @_;
+    my $count = 0;
+    open my $fh, '<', $fasta_file or die "Error: Could not read file $fasta_file\n$!\n";
+    while (my $line = <$fh>) {
+        $count++ if $line =~ m/^>/;
+    }
+    close $fh;
+    return $count;
 }
 
 
