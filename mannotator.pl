@@ -246,13 +246,16 @@ sub splitGffs {
 sub splitFasta {
     #-----
     # Simple script to split a fasta sequence and put into multiple folders
-    # Folders should be made by now and should be named according to the 
-    # fasta_headers...
+    # If the sequence had some annotations, then a folder with a name based
+    # on the sequence fasta header should have been created.
     #
     my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => "fasta");
     while (my $seq = $seqio_object->next_seq)
     {
+        # Skip sequence if it has no annotation (and hence no folder)
         my $tmp_folder = $global_tmp_prefix.'_'.$seq->display_id;
+        next if not -e $tmp_folder;
+        # Write sequence in folder
         my $seq_fn = catfile( $tmp_folder, 'sequence.fa' );
         open my $ffh, '>', $seq_fn or die "Error: Could not write file $seq_fn\n$!\n";
         print $ffh ">" . $seq->display_id() . "\n";
@@ -283,7 +286,8 @@ sub combineGffs {
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
-        run("combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file");
+        my $cmd = "combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file";
+        run($cmd);
 
         # move the unknowns onto the pile
         concat( $unknowns_file, $global_tmp_fasta );
@@ -307,7 +311,7 @@ sub blastUnknowns {
 
     # BLAST them
     my $num_seq = count_fasta_sequences($global_tmp_fasta);
-    print "$num_seq sequences to BLAST in $global_tmp_fasta\n";
+    print "$num_seq sequence(s) to BLAST in $global_tmp_fasta\n";
     my $blast_file = "$global_tmp_fasta_prefix.$blast_program";
     if ($threads > 1)
     {
