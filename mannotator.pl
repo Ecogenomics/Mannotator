@@ -318,6 +318,7 @@ sub blastUnknowns {
         # Open output files
         my @out_fhs;
         my @out_files;
+        my @tmp_blast_files;
         for my $i (1 .. $threads)
         {
             my $tmp_fasta = $global_tmp_fasta_prefix.'_'.$i.'.fna';
@@ -328,6 +329,8 @@ sub blastUnknowns {
                 -flush  => 0, # go as fast as we can!
             );
             push @out_fhs, $seqio_out;
+            my $tmp_blast = $global_tmp_fasta_prefix.'_'.$i.'.'.$blast_program;
+            push @tmp_blast_files, $tmp_blast;
         }
 
         # Distribute sequences equally in output files
@@ -346,13 +349,12 @@ sub blastUnknowns {
         }
 
         # BLAST the sequences
-        my @tmp_blast_files;
-        for my $q (@out_files)
+        for my $i (1 .. scalar @out_files) 
         {
             print "Spawning BLAST worker $i (out of $threads)\n";
-            my $o = $global_tmp_fasta_prefix.'_'.$i.'.'.$blast_program;
+            my $q = $out_files[$i-1];
+            my $o = $tmp_blast_files[$i-1];
             threads->new(\&worker, $q, $o);
-            push @tmp_blast_files, $o;
         }
             
         $_->join() for threads->list();
