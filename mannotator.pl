@@ -57,8 +57,9 @@ my $options = checkParams();
 my %global_U2A_hash = ();
 my %global_annotations_hash = ();
 
+my $global_tmp_prefix  = 'mannotator_'.time;
+my $global_tmp_fasta   = $global_tmp_prefix.'_unknowns.fasta';
 my %global_tmp_folders = ();
-my $global_tmp_fasta = "mannotator_unknowns_".time.".fasta";
 
 my $global_output_file = "mannotatored.gff3";
 if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
@@ -216,12 +217,13 @@ sub splitGffs {
                
                 $current_fasta_header = $fasta_header;
                   
-                # make a new file and directory
-                make_path( $current_fasta_header );
-                $global_tmp_folders{$current_fasta_header} = 1;
+                # make a new temporary directory
+                my $tmp_folder = $global_tmp_prefix.'_'.$current_fasta_header;
+                make_path( $tmp_folder );
+                $global_tmp_folders{$tmp_folder} = 1;
                     
-                # make a new file handle
-                my $out_file = catfile( $current_fasta_header, basename($gff) );
+                # make a new file and file handle
+                my $out_file = catfile( $tmp_folder, basename($gff) );
                 open $current_fh, ">", $out_file or die "Error: Could not write file $out_file\n$!\n";
                     
                 # print back in the header information
@@ -247,7 +249,8 @@ sub splitFasta {
     my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => "fasta");
     while (my $seq = $seqio_object->next_seq)
     {
-        my $seq_fn = catfile( $seq->display_id(), 'sequence.fa' );
+        my $tmp_folder = $global_tmp_prefix.'_'.$seq->display_id;
+        my $seq_fn = catfile( $tmp_folder, 'sequence.fa' );
         open my $ffh, '>', $seq_fn or die "Error: Could not write file $seq_fn\n$!\n";
         print $ffh ">" . $seq->display_id() . "\n";
         print $ffh $seq->seq(). "\n";
@@ -265,14 +268,13 @@ sub combineGffs {
     foreach my $current_folder (keys %global_tmp_folders)
     {
 
+        # string of gff files
         my $gff_str = "";
         foreach my $gff (@gffs)
         {
             $gff_str .= catfile( $current_folder, basename($gff) ) . ",";
         }
-
-        # take off the last comma
-        $gff_str =~ s/,$//;
+        $gff_str =~ s/,$//; # take off the last comma
         
         # run the script!
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
@@ -341,7 +343,7 @@ sub blastUnknowns {
         for my $i (1 .. $threads)
         {
             print "Spawning BLAST worker $i (out of $threads)\n";
-            my $q = $global_tmp_fasta."_".$i;
+            my $q = $global_tmp_fasta.'_'.$i;
             my $o = "$global_tmp_fasta.$i.$blast_program";
             threads->new(\&worker, $q, $o);
             push @blast_files, $o;
@@ -399,7 +401,8 @@ sub splitBlastResults {
                 # we have a file to close
                 close $current_file_handle;
             }
-            my $unknown_filepath = catfile( $dir_name, $unknown_filename );
+
+            my $unknown_filepath = catfile( $global_tmp_prefix.'_'.$dir_name, $unknown_filename );
             open $current_file_handle, ">", $unknown_filepath or die "Error: Could not write file $unknown_filepath\n$!\n";
             $current_dir_name = $dir_name;
         }
@@ -477,7 +480,7 @@ sub annotate {
     # then recombine it all!
     print "Recombining results\n";
     open my $out_fh, ">", $global_output_file or die "Error: Could not write file $global_output_file\n$!\n";
-    print $out_fh "##gff-version  3\n";
+    print $out_fh "##gff-version 3\n";
     foreach my $current_folder (keys %global_tmp_folders)
     {
         my $annotated_file = catfile( $current_folder, "annotated.gff3" );
@@ -661,7 +664,7 @@ sub recombineGff3() {
 
     # specify input via -fh or -file
     my $gffio_in = Bio::Tools::GFF->new(-file => $gff3_in, -gff_version => 3);
-    open my $ann_fh, ">", $gff3_out or die "Error: Could not write file $gff3_out\n$!\n";
+    open my $ann_fh, '>', $gff3_out or die "Error: Could not write file $gff3_out\n$!\n";
     print $ann_fh "##gff-version 3\n";
     
     # loop over the input stream
