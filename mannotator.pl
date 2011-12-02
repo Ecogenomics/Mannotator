@@ -57,7 +57,8 @@ my $options = checkParams();
 my %global_U2A_hash = ();
 my %global_annotations_hash = ();
 
-my $global_tmp_prefix  = 'mannotator_'.time;
+# Process ID and time identify a unique instance of Mannotator
+my $global_tmp_prefix  = 'mannotator_'.$$.time;
 my $global_tmp_fasta   = $global_tmp_prefix.'_unknowns.fasta';
 my %global_tmp_folders = ();
 
