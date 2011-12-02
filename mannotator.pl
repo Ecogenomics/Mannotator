@@ -58,10 +58,12 @@ my %global_U2A_hash = ();
 my %global_annotations_hash = ();
 
 # Process ID and time identify a unique instance of Mannotator
-my $global_tmp_prefix  = 'mannotator_'.$$.time;
-my $global_tmp_fasta   = $global_tmp_prefix.'_unknowns.fasta';
+my $global_tmp_prefix = 'mannotator_'.$$.time;
+my $global_tmp_fasta_prefix = $global_tmp_prefix.'_unknowns';
+my $global_tmp_fasta = $global_tmp_fasta_prefix.'.fna';
 my %global_tmp_folders = ();
 
+# Mannotator output file
 my $global_output_file = "mannotatored.gff3";
 if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
 
@@ -70,9 +72,9 @@ my $global_evalue_cutoff = 0.000000001;
 if(exists $options->{'evalue'}) { $global_evalue_cutoff = $options->{'evalue'}; }
 
 # results cut off
-my $global_results_max_cut_off = 1; # use the top hit only
+my $global_results_max_cut_off = 1; # use the top BLAST similarity only
 
-#blast program to run
+# BLAST program to run
 my $blast_program = "blastx";
 if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
 
@@ -306,6 +308,7 @@ sub blastUnknowns {
     # BLAST them
     my $num_seq = count_fasta_sequences($global_tmp_fasta);
     print "$num_seq sequences to BLAST in $global_tmp_fasta\n";
+    my $blast_file = "$global_tmp_fasta_prefix.$blast_program";
     if ($threads > 1)
     {
         my $num_seq_per_file = int ($num_seq / $threads);
@@ -314,10 +317,13 @@ sub blastUnknowns {
 
         # Open output files
         my @out_fhs;
+        my @out_files;
         for my $i (1 .. $threads)
         {
+            my $tmp_fasta = $global_tmp_fasta_prefix.'_'.$i.'.fna';
+            push @out_files, $tmp_fasta;
             my $seqio_out = Bio::SeqIO->new(
-                -file   => '>'.$global_tmp_fasta.'_'.$i,
+                -file   => '>'.$tmp_fasta,
                 -format => 'fasta',
                 -flush  => 0, # go as fast as we can!
             );
@@ -340,28 +346,27 @@ sub blastUnknowns {
         }
 
         # BLAST the sequences
-        my @blast_files;
-        for my $i (1 .. $threads)
+        my @tmp_blast_files;
+        for my $q (@out_files)
         {
             print "Spawning BLAST worker $i (out of $threads)\n";
-            my $q = $global_tmp_fasta.'_'.$i;
-            my $o = "$global_tmp_fasta.$i.$blast_program";
+            my $o = $global_tmp_fasta_prefix.'_'.$i.'.'.$blast_program;
             threads->new(\&worker, $q, $o);
-            push @blast_files, $o;
+            push @tmp_blast_files, $o;
         }
             
         $_->join() for threads->list();
 
         # Put all blast results in a unique file
-        for my $blast_file (@blast_files)
+        for my $tmp_blast_file (@tmp_blast_files)
         {
-            concat( $blast_file, "$global_tmp_fasta.$blast_program" );
+            concat($tmp_blast_file, $blast_file);
         }
 
     }
     else
     {
-        worker($global_tmp_fasta, "$global_tmp_fasta.$blast_program");
+        worker($global_tmp_fasta, $blast_file);
     }
 }
 
@@ -379,7 +384,7 @@ sub splitBlastResults {
     }
     else
     {
-        my $blast_file = "$global_tmp_fasta.$blast_program";
+        my $blast_file = "$global_tmp_fasta_prefix.$blast_program";
         open $blast_results, "<", $blast_file or die "Error: Could not read file $blast_file\n$!\n";
     }
 
@@ -528,16 +533,16 @@ sub cleanTmps {
     {
         for (my $i = 1; $i <= $threads; $i++)
         {
-            my $global_fasta_chunk = $global_tmp_fasta."_".$i;
+            my $global_fasta_chunk = $global_tmp_fasta_prefix.'_'.$i.'.fna';
             unlink $global_fasta_chunk or die "Error: Could not delete file $global_fasta_chunk\n$!\n";
-            my $other = "$global_tmp_fasta.$i.$blast_program";
+            my $other = $global_tmp_fasta_prefix.'_'.$i.'.'.$blast_program;
             unlink $other or die "Error: Could not delete file $other\n$!\n";
         }
     }
     
     if($keep_bx == 0)
     {
-       my $file = "$global_tmp_fasta.$blast_program";
+       my $file = "$global_tmp_fasta_prefix.$blast_program";
        unlink $file or die "Error: Could not delete file $file\n$!\n";
     }
 }
