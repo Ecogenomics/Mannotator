@@ -1,0 +1,2 @@
+##gff-version 3
+758	Prodigal_v2.50	CDS	27017	28915	149.9	+	0	ID=54_37;partial=00;start_type=ATG;rbs_motif=AGGAG/GGAGG;rbs_spacer=11-12bp;score=150.99;cscore=134.44;sscore=16.55;rscore=7.93;uscore=3.71;tscore=3.85

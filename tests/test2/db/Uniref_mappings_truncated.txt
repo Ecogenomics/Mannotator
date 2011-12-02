@@ -1,0 +1,6 @@
+Q17FA7^db_xref=Uniprot:Q17FA7;Ontology_term=COG_ID:inNOG11764,KEGG_ID:aag:AaeL_AAEL003451
+Q0K0A5^db_xref=Uniprot:Q0K0A5;Ontology_term=COG_ID:COG0583,KEGG_ID:reh:H16_B1787;note=COG_DESC:Transcriptional regulator
+D3FA93^db_xref=Uniprot:D3FA93;Ontology_term=KEGG_ID:cwo:Cwoe_0729
+E1RJS3^db_xref=Uniprot:E1RJS3;Ontology_term=KEGG_ID:mpi:Mpet_0953,KEGG_ONTOLOGY:ko:K07315
+E0SQE9^db_xref=Uniprot:E0SQE9;Ontology_term=KEGG_ID:iag:Igag_1402,KEGG_ONTOLOGY:ko:K02823
+A8MM54^db_xref=Uniprot:A8MM54;Ontology_term=KEGG_ID:aoe:Clos_0661,KEGG_PATHWAY:path:aoe02010,KEGG_ONTOLOGY:ko:K09811

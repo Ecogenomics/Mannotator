@@ -15,6 +15,7 @@ OUT=mannotatored_nr.gff
 CMD="mannotator.pl -gffs ${PRODIGAL_GFF} -contigs ${CONTIGS_FASTA} -protdb ${PROTDB} -i2a ${I2A} -seq_embed -threads $THREADS -out $OUT"
 echo $CMD
 eval $CMD
+echo ""
 
 
 # Mannotator using uniref
@@ -25,3 +26,4 @@ OUT=mannotatored_uniref.gff
 CMD="mannotator.pl -gffs ${PRODIGAL_GFF} -contigs ${CONTIGS_FASTA} -protdb ${PROTDB} -i2a ${I2A} -seq_embed -threads $THREADS -out $OUT"
 echo $CMD
 eval $CMD
+echo ""
