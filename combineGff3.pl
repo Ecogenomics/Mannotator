@@ -88,6 +88,7 @@ open my $ann_fh, ">", $default_ann_file or die "Error: Could not write file $def
 my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => "fasta");
 my $global_seq = $seqio_object->next_seq;
 my $global_seq_length = $global_seq->length;
+$seqio_object->close;
 
 # initialise the linked list
 my $global_gff_list = GffObject->new();
@@ -164,7 +165,6 @@ while(1 == nextInList(\$list_handle_ref))
     print $out_fh "$gff_string\n";
 }
 
-$seqio_object->close();    
 
 ######################################################################
 # CUSTOM SUBS
