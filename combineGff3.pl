@@ -74,18 +74,18 @@ my $global_min_orf_cutoff = 100;
 my $global_shared_olap_cutoff = 0.1;
 
 # output gff3 file
-my $default_output_file = "parsed.gff3";
+my $default_output_file = 'parsed.gff3';
 if(exists $options->{'out'}) { $default_output_file = $options->{'out'}; }
 open my $out_fh, ">", $default_output_file or die "Error: Could not write file $default_output_file\n$!\n";
 
 # output todo annotation file
-my $default_ann_file = "todo.fa";
+my $default_ann_file = 'todo.fa';
 if(exists $options->{'ann'}) { $default_ann_file = $options->{'ann'}; }
 open my $ann_fh, ">", $default_ann_file or die "Error: Could not write file $default_ann_file\n$!\n";
 
 # first parse the fasta file of contigs to get headers and sequence lengths...
 # really there should only be one guy here...
-my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => "fasta");
+my $seqio_object = Bio::SeqIO->new(-file => $options->{'contigs'}, -format => 'fasta');
 my $global_seq = $seqio_object->next_seq;
 my $global_seq_length = $global_seq->length;
 $seqio_object->close;
@@ -106,7 +106,6 @@ my @gff_fns = split /,/, $options->{'gffs'};
 
 foreach my $gff3 (@gff_fns)
 {
-
     if (not -e $gff3) {
         die "Error: Could not read GFF file $gff3\n$!\n";
     }
@@ -119,8 +118,8 @@ foreach my $gff3 (@gff_fns)
     # loop over the input stream
     while(my $feat = $gffio->next_feature()) {
         
-        # filter here
-        next if(abs($feat->start - $feat->end) < $global_min_orf_cutoff);
+        # filter out orf if it is too short
+        next if ($feat->end - $feat->start + 1) < $global_min_orf_cutoff;
 
         # then insert
         $ins_ref = insertFeature($ins_ref, \$feat);
@@ -133,19 +132,20 @@ foreach my $gff3 (@gff_fns)
     $global_gff_used_list{$gff3} = $features_used;
 }
 
+
+
 # print to the output file
 print $out_fh "##gff-version 3\n";
 my $gffio = Bio::Tools::GFF->new(-gff_version => 3);
 my $list_handle_ref = \$global_gff_list;
-
-while(1 == nextInList(\$list_handle_ref))
+while(nextInList(\$list_handle_ref) == 1)
 {
     my $current_node = ${$list_handle_ref};
     my $current_feat_ref = $current_node->GO_gffRef;
     my $current_feature = ${$current_feat_ref};
     my $gff_string = $current_feature->gff_string($gffio);
     my @gff_bits = split /\t/, $gff_string;
-    
+
     # for rast annotated genes, we just need to get the hypothetical proteins
     my $seq_entry = ">".$gff_bits[0]."_".$current_node->GO_start."_".$current_node->GO_end."\n".
                     $global_seq->subseq($current_node->GO_start, $current_node->GO_end)."\n";
@@ -162,6 +162,7 @@ while(1 == nextInList(\$list_handle_ref))
         print $ann_fh $seq_entry;
     }
     # check to see if we'll need to do some annotation afterwards...
+
     print $out_fh "$gff_string\n";
 }
 
@@ -174,12 +175,11 @@ sub insertFeature {
     #-----
     # insert a feature, providing that it doesn't displace any existing feature...
     #
-    my($start_ref, $feat_ref) = @_;
+    my ($start_ref, $feat_ref) = @_;
     my $feat = ${$feat_ref};
-    my $feat_start = $feat->start;
-    my $feat_end = $feat->end;
-    my $feat_length = abs($feat->start - $feat->end);
-
+    my $feat_start  = $feat->start;
+    my $feat_end    = $feat->end;
+    my $feat_length = $feat_end - $feat_start + 1; # start <= end , always
     my $first_loop_done = 0;
     my $list_handle_ref = $start_ref;
     do
@@ -196,7 +196,7 @@ sub insertFeature {
         }
         
         # sometimes we start a little too far in...
-        if(0 == $first_loop_done)
+        if($first_loop_done == 0)
         {
             if($current_start >= $feat_end)
             {
@@ -283,7 +283,7 @@ sub insertFeature {
                 $should_add = 1;
             }
         }
-        if(1 == $should_add)
+        if($should_add == 1)
         {
             my $new_obj = GffObject->new();
             $new_obj->GO_gffRef($feat_ref);
@@ -293,11 +293,12 @@ sub insertFeature {
             # return a reference to the inserted object to speed up the next insertion...
             return \$new_obj;
         }
-    } while(1 == nextInList(\$list_handle_ref));
+    } while(nextInList(\$list_handle_ref) == 1);
 
     # nothing!
     return \$global_gff_list;
 }
+
 
 sub insertInList {
     #-----
@@ -320,6 +321,7 @@ sub insertInList {
     $new_obj->GO_next_start($tmp_nxt_obj->GO_start);
 }
 
+
 sub nextInList {
     #-----
     # given a ref to a linked list node, update to reflect the next node in the list
@@ -333,6 +335,7 @@ sub nextInList {
     $$ll_ref_ref = $ll_obj->GO_nextGO_ref;
     return 1;
 }
+
 
 ######################################################################
 # TEMPLATE SUBS
@@ -414,11 +417,11 @@ __DATA__
 
     combineGff3.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
 
-    -gffs -g    FILE             Gff3 files to parse (comma separated list, in order of "trust"
-    -contigs -c FILE             Contigs which were annotated to produce the gff3 files. (Headers must match!)
-    [-out -o]   FILE             Output file to write to [default: parsed.gff3]
-    [-a -ann]   FILE             File to place fasta type sequences for further annotation [default: todo.fa]
-    [-help -h]                   Displays basic usage information
+     -gffs    -g FILE    Gff3 files to parse (comma separated list, in order of "trust"
+     -contigs -c FILE    Contigs which were annotated to produce the gff3 files. (Headers must match!)
+    [-out     -o FILE]   Output file to write to [default: parsed.gff3]
+    [-ann     -a FILE]   File to place fasta type sequences for further annotation [default: todo.fa]
+    [-help    -h     ]   Displays basic usage information
       
          
 =cut
