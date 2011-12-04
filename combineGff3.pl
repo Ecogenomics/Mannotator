@@ -103,7 +103,6 @@ my $global_end_ref = \$global_gff_list;
 
 # get all the gff file names!
 my @gff_fns = split /,/, $options->{'gffs'};
-
 foreach my $gff3 (@gff_fns)
 {
     if (not -e $gff3) {
@@ -119,7 +118,9 @@ foreach my $gff3 (@gff_fns)
     while(my $feat = $gffio->next_feature()) {
         
         # filter out orf if it is too short
-        next if ($feat->end - $feat->start + 1) < $global_min_orf_cutoff;
+        if ($feat->length < $global_min_orf_cutoff) {
+            next;
+        }
 
         # then insert
         $ins_ref = insertFeature($ins_ref, \$feat);
@@ -173,13 +174,13 @@ while(nextInList(\$list_handle_ref) == 1)
 
 sub insertFeature {
     #-----
-    # insert a feature, providing that it doesn't displace any existing feature...
+    # insert a feature, provided that it does not displace any existing feature...
     #
     my ($start_ref, $feat_ref) = @_;
     my $feat = ${$feat_ref};
     my $feat_start  = $feat->start;
     my $feat_end    = $feat->end;
-    my $feat_length = $feat_end - $feat_start + 1; # start <= end , always
+    my $feat_length = $feat->length; # start <= end , always
     my $first_loop_done = 0;
     my $list_handle_ref = $start_ref;
     do
