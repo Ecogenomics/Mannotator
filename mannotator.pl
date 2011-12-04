@@ -176,7 +176,7 @@ sub splitGffs {
     {
         print "Parsing GFF file $gff\n";
         my $current_fh;
-        my $current_fasta_header = "__DOOF";
+        my $current_fasta_header = '__DOOF';
         my $true_fasta_header = undef;
         open my $gff_fh, "<", $gff or die "Error: Could not read file $gff\n$!\n";
 
@@ -187,13 +187,12 @@ sub splitGffs {
 
         while(<$gff_fh>)
         {
-
             # ##FASTA section indicates end of ##gff section
             if ($_ =~ m/^##FASTA/i) {
                last;
             }
 
-            # comment lines split sequences
+            # comment lines split sequences or include prodigal information
             if ($_ =~ m/^#(.*)$/) {
                 my $prodigal_seqname = prodigal_seqname($1);
                 $true_fasta_header = $prodigal_seqname if defined $prodigal_seqname;
@@ -211,7 +210,7 @@ sub splitGffs {
 
             if($fasta_header ne $current_fasta_header)
             {
-                if("__DOOF" ne $current_fasta_header)
+                if($current_fasta_header ne '__DOOF')
                 {
                     # this is not the first run.
                     # so we have a file to close...
@@ -222,15 +221,21 @@ sub splitGffs {
                   
                 # make a new temporary directory
                 my $tmp_folder = $global_tmp_prefix.'_'.$current_fasta_header;
-                make_path( $tmp_folder );
+                make_path( $tmp_folder ) if not -e $tmp_folder;
                 $global_tmp_folders{$tmp_folder} = 1;
                     
-                # make a new file and file handle
+                # write in output file
                 my $out_file = catfile( $tmp_folder, basename($gff) );
-                open $current_fh, ">", $out_file or die "Error: Could not write file $out_file\n$!\n";
-                    
-                # print back in the header information
-                print $current_fh $gff_def;
+                if (not -e $out_file) {
+                    # Start a new file and print the GFFheader information
+                    open $current_fh, '>', $out_file or die "Error: Could not write file $out_file\n$!\n";
+                    print $current_fh $gff_def;
+
+                } else {
+                    # Add to an exiting file (if all the features of a sequence are not contiguous in a GFF file)
+                    open $current_fh, '>>', $out_file or die "Error: Could not write file $out_file\n$!\n";
+                }
+
             }
             print $current_fh $_;
         }
