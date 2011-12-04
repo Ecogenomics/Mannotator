@@ -282,7 +282,7 @@ sub combineGffs {
         }
         $gff_str =~ s/,$//; # take off the last comma
         
-        # run the script!
+        # run the external script!
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
