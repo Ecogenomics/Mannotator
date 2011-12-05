@@ -283,7 +283,11 @@ sub combineGffs {
         my $gff_str = "";
         foreach my $gff (@gffs)
         {
-            $gff_str .= catfile( $current_folder, basename($gff) ) . ",";
+            my $gff_path = catfile( $current_folder, basename($gff) );
+            $gff_str .= $gff_path.",";
+
+            # If that contig had no annotations, the file does not exist. Just create an empty one.
+            touch($gff_path) if (not -e $gff_path);
         }
         $gff_str =~ s/,$//; # take off the last comma
         
