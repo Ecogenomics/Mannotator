@@ -1,5 +1,5 @@
 ##gff-version 3
-758	Prodigal_v2.50	CDS	27017	28915	149.9	+	0	ID=54_37;cscore=134.44;partial=00;rbs_motif=AGGAG/GGAGG;rbs_spacer=11-12bp;rscore=7.93;sscore=16.55;start_type=ATG;tscore=3.85;uscore=3.71
+758	FIG	CDS	27017	28915	.	+	2	ID=fig|6666666.10066.peg.1082;Name=Ribonucleotide reductase of class II (coenzyme B12-dependent) (EC 1.17.4.1);Ontology_term=KEGG_ENZYME:1.17.4.1
 ##FASTA
 >758 len=30802 nreads=7113 cov=20.4493
 GTCATAATCATCGATAGTGTGTAAAGGGTCGTGTCCTCCATACAAGATGTTGAAAAAATC

@@ -1,4 +1,4 @@
-##gff-version  3
+##gff-version 3
 NODE_551_length_74189_cov_12.129008	Prodigal_v2.50	CDS	23858	24286	46.5	-	0	ID=23_34;cscore=41.10;partial=00;rbs_motif=TAAA;rbs_spacer=9bp;rscore=1.89;sscore=4.80;start_type=ATG;tscore=3.47;uscore=0.10
 NODE_551_length_74189_cov_12.129008	Prodigal_v2.50	CDS	25000	25400	39.3	-	0	ID=23_35;cscore=41.10;partial=00;rbs_motif=TAAA;rbs_spacer=9bp;rscore=1.89;sscore=4.80;start_type=ATG;tscore=3.47;uscore=0.10
 contig_001	Prodigal_v2.50	CDS	7	190	46.7	-	0	rbs_motif=TAAA;cscore=41.10;ID=23_33;tscore=3.47;start_type=ATG;rbs_spacer=9bp;Note=cellular organisms/Bacteria/Proteobacteria/Gammaproteobacteria/Enterobacteriales/Enterobacteriaceae/Escherichia/Escherichia coli/Escherichia coli O157/Escherichia coli O157;partial=00;uscore=0.10;rscore=1.89;sscore=4.80;Dbxref=NCBI_gi:15834432 taxon:386585
