@@ -1,4 +1,5 @@
 ##gff-version 3
+9	FIG	CDS	1	110	.	+	1	ID=fig|6666666.10066.peg.1084;Name=hypothetical protein
 758	Prodigal_v2.50	CDS	1	549	28.7	-	0	ID=54_1;cscore=14.38;partial=10;rbs_motif=GGAG/GAGG;rbs_spacer=5-10bp;rscore=8.99;sscore=15.42;start_type=ATG;tscore=3.85;uscore=1.46
 758	FIG	CDS	564	1493	.	-	0	ID=fig|6666666.10066.peg.1050;Name=hypothetical protein
 758	FIG	CDS	1771	1968	.	+	1	ID=fig|6666666.10066.peg.1051;Name=hypothetical protein
@@ -38,4 +39,7 @@
 758	FIG	CDS	26610	26735	.	-	0	ID=fig|6666666.10066.peg.1081;Name=hypothetical protein
 758	FIG	CDS	27017	28915	.	+	2	ID=fig|6666666.10066.peg.1082;Name=Ribonucleotide reductase of class II (coenzyme B12-dependent) (EC 1.17.4.1);Ontology_term=KEGG_ENZYME:1.17.4.1
 758	FIG	CDS	28915	29721	.	+	1	ID=fig|6666666.10066.peg.1083;Name=hypothetical protein
-9	FIG	CDS	1	110	.	+	1	ID=fig|6666666.10066.peg.1084;Name=hypothetical protein
+758	FIG	tRNA	30275	30346	.	+	.	ID=fig|6666666.10066.rna.4;Name=tRNA-Ile-TAT
+758	FIG	tRNA	30521	30595	.	+	.	ID=fig|6666666.10066.rna.5;Name=tRNA-Leu-TAA
+758	FIG	tRNA	30600	30673	.	+	.	ID=fig|6666666.10066.rna.6;Name=tRNA-Leu-TAG
+758	FIG	tRNA	30690	30764	.	+	.	ID=fig|6666666.10066.rna.7;Name=tRNA-Leu-CAA

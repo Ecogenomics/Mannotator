@@ -78,8 +78,13 @@ my $global_results_max_cut_off = 1; # use the top BLAST similarity only
 my $blast_program = "blastx";
 if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
 
+# Number of BLAST threads
 my $threads = 1;
 if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
+
+# Minimum ORF length to keep (in bp)
+my $min_len = 100;
+if (exists $options->{'min_len'}) {$min_len = $options->{'min_len'}; }
 
 #
 # Step 1. Split down the GFF3 and FASTA files into multiple folders
@@ -295,7 +300,7 @@ sub combineGffs {
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
-        my $cmd = "combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file";
+        my $cmd = "combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
         run($cmd);
 
         # move the unknowns onto the pile
@@ -802,6 +807,7 @@ sub checkParams {
          "four|4+",
          "five|5+",
          "seq_embed|d",
+         "min_len|m:s",
     );
     my %options;
 
@@ -906,10 +912,12 @@ __DATA__
        -protdb    -p LOCATION      Location of the UniRef or Nr BLAST database
        -i2a       -i FILE          ID to annotations mapping :file
 
+      [-min_len   -m INTEGER   ]   Remove ORFs less than this length (in bp) [default: 100]. Note that this default
+                                   value can cause the removal of, e.g., tRNA genes.
       [-seq_embed -d           ]   Embed sequences into GFF files (useful to view the annotation in Artemis)     
       [-threads   -t INTEGER   ]   Number of blast jobs to run [default: 1]
       [-flatfile  -f           ]   Optionally create multiple genbank files for your contigs [default: do not create]
-      [-blast_prg -b BLAST TYPE]   The type of blast to run [default: blastx]
+      [-blast_prg -b BLAST_TYPE]   The type of blast to run [default: blastx]
       [-evalue    -e DECIMAL   ]   E-value cut off for blastx [default: 0.000000001]
       [-out       -o FILE      ]   Filename of the final gff3 file [default: mannotatored.gff3]
       [-keep      -k           ]   Keep all the tmp directories

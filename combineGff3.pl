@@ -69,12 +69,13 @@ my $global_any_inserted = 0;
 # turn debugging on (1) or off (0)
 my $debug = 0;
 
-# algorithm based parameters...
-# reject all orfs less than this amount!
-my $global_min_orf_cutoff = 100;
-# reject all orfs which overlap with already accepted orfs by
+# reject all orfs which overlap with already accepted orfs by 
 # at least this much
 my $global_shared_olap_cutoff = 0.1;
+
+# reject all orfs less than this amount!
+my $default_min_orf_cutoff = 100;
+if(exists $options->{'min_len'}) { $default_min_orf_cutoff = $options->{'min_len'}; }
 
 # output gff3 file
 my $default_feat_file = 'parsed.gff3';
@@ -121,8 +122,8 @@ foreach my $gff3 (@gff_fns)
     while(my $feat = $gffio->next_feature()) {
         
         # filter out orf if it is too short
-        if ($feat->length < $global_min_orf_cutoff) {
-            debugFeature('Not keeping feature '.feat2str($feat), "less than $global_min_orf_cutoff bp") if ($debug);
+        if ($feat->length < $default_min_orf_cutoff) {
+            debugFeature('Not keeping feature '.feat2str($feat), "less than $default_min_orf_cutoff bp") if ($debug);
             next;
         }
 
@@ -188,14 +189,6 @@ sub insertFeature {
     # start_ref: the list of features
     # feat_ref: the feature that we try to put in the list
     my ($start_ref, $feat_ref) = @_;
-
-    ####
-    #use Data::Dumper;
-    #print "FEATURE TO INSERT: ".Dumper($feat_ref);
-    #print "LIST: ".Dumper($start_ref);
-    #print "\n";
-    #die "Temp exit\n";
-    ####
 
     my $feat = ${$feat_ref};
     my $feat_start  = $feat->start;
@@ -368,7 +361,7 @@ sub nextInList {
 # TEMPLATE SUBS
 ######################################################################
 sub checkParams {
-    my @standard_options = ( "help|h+", "gffs|g:s", "contigs|c:s", "out|o:s", "ann|a:s", );
+    my @standard_options = ( "help|h+", "gffs|g:s", "contigs|c:s", "out|o:s", "ann|a:s", "min_len|m:s");
     my %options;
 
     # Add any other command line options, and the code to handle them
@@ -444,11 +437,12 @@ __DATA__
 
     combineGff3.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
 
-     -gffs    -g FILE    Gff3 files to parse (comma separated list, in order of "trust"
-     -contigs -c FILE    Contigs which were annotated to produce the gff3 files. (Headers must match!)
-    [-out     -o FILE]   Output file to write to [default: parsed.gff3]
-    [-ann     -a FILE]   File to place fasta type sequences for further annotation [default: todo.fa]
-    [-help    -h     ]   Displays basic usage information
+     -gffs    -g FILE      Gff3 files to parse (comma separated list, in order of "trust"
+     -contigs -c FILE      Contigs which were annotated to produce the gff3 files. (Headers must match!)
+    [-out     -o FILE   ]  Output file to write to [default: parsed.gff3]
+    [-ann     -a FILE   ]  File to place fasta type sequences for further annotation [default: todo.fa]
+    [-min_len -m INTEGER]  Minimum ORF length (in bp). ORFs smaller than this are discarded [default: 100]
+    [-help    -h        ]  Displays basic usage information
       
          
 =cut
