@@ -80,6 +80,9 @@ $ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb uniref
 
 $ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb nr -i2a Nr_mappings.txt -seq_embed
 
+If you ran your data against both Uniref (for function assignment) and Nr (for taxonomy assignment), you might want to recombine your GFF output files into a single file using the combineGffAnnotations.pl script.
+
+
 Where the uniref file can be found (on Eury) at:
 
 /Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90.fasta
