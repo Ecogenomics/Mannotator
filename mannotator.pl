@@ -300,7 +300,7 @@ sub combineGffs {
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
-        my $cmd = "combineGff3.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
+        my $cmd = "combineGffOrfs.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
         run($cmd);
 
         # move the unknowns onto the pile

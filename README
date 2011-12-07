@@ -99,9 +99,9 @@ FIN
 More info on the scripts themselves
 ------------------------------------------------
 
-The first is called combineGff3.pl. It will take any number of gff3 files and merge them into one combined file. Also, it is currently programmed to extract the fasta sequences for ORFs which have not been given a RAST/FIG annotation. This script will run as a stand alone application. The order of the gff3 files is IMPORTANT. You need to supply them in the order in which you trust them.
+The first is called combineGffOrfs.pl. It will take any number of gff3 files and merge their ORFs into one combined file. Also, it is currently programmed to extract the fasta sequences for ORFs which have not been given a RAST/FIG annotation. This script will run as a stand alone application. The order of the gff3 files is IMPORTANT. You need to supply them in the order in which you trust them.
 
-$ combineGff3.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
+$ combineGffOrfs.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
 
 The second script is called blast2Ann.pl. It will take a Uniref90 blastx result and add KEGG and COG/NOG annotations to your contigs. Again, it can be run as a standalone.
 

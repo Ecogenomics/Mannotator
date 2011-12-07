@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-#    combineGff3.pl
+#    combineGffOrfs.pl
 #    
 #    parse a list of gff3 files in order, 
 #
@@ -410,7 +410,7 @@ __DATA__
 
 =head1 NAME
 
-    combineGff3.pl
+    combineGffOrfs.pl
 
 =head1 COPYRIGHT
 
@@ -435,7 +435,7 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    combineGff3.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
+    combineGffOrfs.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
 
      -gffs    -g FILE      Gff3 files to parse (comma separated list, in order of "trust"
      -contigs -c FILE      Contigs which were annotated to produce the gff3 files. (Headers must match!)
