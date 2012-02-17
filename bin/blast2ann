@@ -1,0 +1,182 @@
+#! /usr/bin/env perl
+
+###############################################################################
+#
+#    blast2ann.pl
+#    
+#    Convert blast results to GO annotations
+#
+#    Copyright (C) 2011 Michael Imelfort
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+###############################################################################
+
+#pragmas
+use strict;
+use warnings;
+BEGIN {
+    select(STDERR);
+    $| = 1;
+    select(STDOUT);
+    $| = 1;
+}
+#core Perl modules
+use Getopt::Long;
+use Mannotator;
+use Pod::Usage;
+#locally-written modules
+
+
+
+# get input params and print copyright
+printAtStart();
+my $options = checkParams();
+
+######################################################################
+# CODE HERE
+######################################################################
+
+# globals
+my %global_U2A_hash = ();
+my %global_annotations_hash = ();
+
+# default working directory
+my $global_working_dir = ".";
+if(exists $options->{'working_dir'}) { $global_working_dir = $options->{'working_dir'}; }
+
+# default output file
+my $global_output_filename = "annotated.gff3";
+if(exists $options->{'out'}) { $global_output_filename = $options->{'out'}; }
+
+# evalue cutoff
+my $global_evalue_cutoff = 0.000000001;
+if(exists $options->{'evalue'}) { $global_evalue_cutoff = $options->{'evalue'}; }
+
+#results cut off
+my $global_results_max_cut_off = 1;
+
+# get the blast results:
+my @blast_files = ();
+if (-d $global_working_dir) {
+    opendir(INDIR, $global_working_dir)
+    or die "Failed to read from directory $global_working_dir:$!\n";
+    @blast_files = grep /\.blast[nx]$/, readdir (INDIR);
+    closedir (INDIR);
+}
+else {
+    push (@blast_files, $global_working_dir);
+}
+
+if($#blast_files == -1)
+{
+    print "ERROR: no blast files found in current working directory: [$global_working_dir]\n";
+    exit;
+}
+print "parsing ".@blast_files." blast results\n";
+
+# load the databases
+&loadU2A($options->{'u2a'}, \%global_U2A_hash);
+
+# parse the blast results and report the GO predictions
+&generateAnnotations(\@blast_files, \%global_U2A_hash, $global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash);
+
+# insert these new values into the GFF3 file
+&recombineGff3($options->{'gff3'}, $global_output_filename, \%global_annotations_hash);
+
+######################################################################
+# TEMPLATE SUBS
+######################################################################
+sub checkParams {
+    my @standard_options = ( "help|h+", "evalue|e:i", "working_dir|w:s", "out|o:s", "u2a|u:s", "gff3|g:s", );
+    my %options;
+
+    # Add any other command line options, and the code to handle them
+    # 
+    GetOptions( \%options, @standard_options );
+
+    # if no arguments supplied print the usage and exit
+    #
+    pod2usage() if (0 == (keys (%options) ));
+
+    # If the -help option is set, print the usage and exit
+    #
+    pod2usage() if $options{'help'};
+
+    if(!exists $options{'u2a'})
+    {
+        pod2usage(msg => "ERROR: You forgot to supply the location of the UniRef 2 annotations file\n");
+    }
+    
+    if(!exists $options{'gff3'})
+    {
+        pod2usage(msg =>  "ERROR: You need to supply a gff3 file\n" );
+    }
+    
+    return \%options;
+}
+
+sub printAtStart {
+print<<"EOF";
+---------------------------------------------------------------- 
+ $0
+ Copyright (C) 2011 Michael Imelfort
+    
+ This program comes with ABSOLUTELY NO WARRANTY;
+ This is free software, and you are welcome to redistribute it
+ under certain conditions: See the source for more details.
+---------------------------------------------------------------- 
+EOF
+}
+
+__DATA__
+
+=head1 NAME
+
+    blast2ann.pl
+
+=head1 COPYRIGHT
+
+   copyright (C) 2011 Michael Imelfort
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=head1 DESCRIPTION
+
+   Insert detailed description here
+
+=head1 SYNOPSIS
+
+        blast2ann.pl -u2a|u ANN_file -gff3|g gff3_file
+
+        -u2a -u FILE                    UniRef to annotations file
+        -gff3 -g FILE                   Gff3 file to add annotations to
+        [-working_dir -w DIRECTORY]     location of the blast output files [default: current directory]
+        [-out -o FILE]                  file to write results to [default: annotated.gff3]
+        [-evalue -e NUMBER]             evalue cut off for blast results [default: 0.000000001]
+        [-help -h]                      Displays basic usage information
+         
+=cut
+

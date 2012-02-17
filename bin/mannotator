@@ -1,0 +1,295 @@
+#! /usr/bin/env perl
+
+###############################################################################
+#
+#    mannotator.pl
+#    
+#    Annotate a genome!
+#
+#    Copyright (C) 2011 2012 Michael Imelfort Florent Angly Connor Skennerton
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+###############################################################################
+
+#pragmas
+use strict;
+use warnings;
+
+#perl modules
+use Getopt::Long;
+use Mannotator;
+use Pod::Usage;
+#locally-written modules
+
+BEGIN {
+    select(STDERR);
+    $| = 1;
+    select(STDOUT);
+    $| = 1;
+}
+
+# get input params and print copyright
+printAtStart();
+my $options = checkParams();
+
+######################################################################
+# CODE HERE
+######################################################################
+# globals
+my %global_U2A_hash = ();
+my %global_annotations_hash = ();
+
+# Process ID and time identify a unique instance of Mannotator
+my $global_tmp_prefix = 'mannotator_'.$$.time;
+my $global_tmp_fasta_prefix = $global_tmp_prefix.'_unknowns';
+my $global_tmp_fasta = $global_tmp_fasta_prefix.'.fna';
+my %global_tmp_folders = ();
+
+# Mannotator output file
+my $global_output_file = "mannotatored.gff3";
+if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
+
+# evalue cutoff
+my $global_evalue_cutoff = 0.000000001;
+if(exists $options->{'evalue'}) { $global_evalue_cutoff = $options->{'evalue'}; }
+
+# results cut off
+my $global_results_max_cut_off = 1; # use the top BLAST similarity only
+
+# BLAST program to run
+my $blast_program = "blastx";
+if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
+
+# Number of BLAST threads
+my $threads = 1;
+if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
+
+# Minimum ORF length to keep (in bp)
+my $min_len = 100;
+if (exists $options->{'min_len'}) {$min_len = $options->{'min_len'}; }
+
+# use the new blast+ programs rather than blastall
+my $use_new_blast = 1;
+
+#
+# Step 1. Split down the GFF3 and FASTA files into multiple folders
+#
+unless ($options->{'one'})
+{
+    print "Step 1: Splitting GFF and FASTA files into temporary directories\n";
+    splitGffs($options->{'gffs'}, \%global_tmp_folders, \$global_tmp_prefix);
+    print $options->{'contigs'}, "\n";
+    splitFasta($options->{'contigs'}, \$global_tmp_prefix);
+}
+
+#
+# Step 2. For each folder, combine the gff files and produce a list of sequences to be blasted!
+#
+unless($options->{'two'})
+{
+    print "Step 2: Combining Gffs\n";
+    combineGffs($options->{'gffs'}, \%global_tmp_folders, $min_len, \$global_tmp_fasta);
+}
+
+#
+# Step 3. Blast the unknowns against UniRef or Nr proteic database
+#
+unless ($options->{'three'})
+{
+    print "Step 3: Blasting unknown ORFs against protein database... This could take some time. Perhaps you need a coffee?\n";
+    blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
+}
+
+#
+# Step 4. Splitting the BLAST results
+#
+unless ($options->{'four'})
+{
+    print "Step 4: Splitting BLAST results\n";
+    splitBlastResults($options->{'sims'}, \$global_tmp_fasta_prefix, $blast_program, \$global_tmp_prefix, \%global_tmp_folders );
+}
+
+#
+# Step 5. Annotate the GFFs using BLAST results and re-combine!
+#
+unless ($options->{'five'})
+{
+    print "Step 5: Annotating using the BLAST results\n";
+    annotate($blast_program, $options->{'seq_embed'},  $options->{'i2a'}, \%global_U2A_hash, \%global_tmp_folders,
+            $options->{'contigs'},  $global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash, $global_output_file );
+}
+
+#
+# Finally, remove all the temp directories (if we need to)
+#
+if(exists $options->{'blastx'})
+{
+    print "Removing all but the blastx file\n";
+    cleanTmps($blast_program, 1, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
+}
+elsif(!exists $options->{'keep'})
+{
+    print "Cleaning up tmp folders\n";
+    cleanTmps($blast_program, 0, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
+}
+
+if(exists $options->{'flatfile'})
+{
+    createFlatFile($options->{'contigs'}, \$global_output_file);
+}
+
+######################################################################
+# TEMPLATE SUBS
+######################################################################
+sub checkParams {
+    my @standard_options = (
+         "help|h+",
+         "gffs|g:s",
+         "keep|k+",
+         "contigs|c:s",
+         "i2a|i:s",
+         "protdb|p:s",
+         "out|o:s",
+         "blastx|x:+",
+         "sims|s:s",
+         "evalue|e:s",
+         "blast_prg|b:s",
+         "flatfile|f:+",
+         "threads|t:s",
+         "one|1+",
+         "two|2+",
+         "three|3+",
+         "four|4+",
+         "five|5+",
+         "seq_embed|d",
+         "min_len|m:s",
+    );
+    my %options;
+
+    # Add any other command line options, and the code to handle them
+    # 
+    GetOptions( \%options, @standard_options );
+
+    # if no arguments supplied print the usage and exit
+    #
+    pod2usage() if (0 == (keys (%options) ));
+
+    # If the -help option is set, print the usage and exit
+    #
+    pod2usage() if $options{'help'};
+    
+    if(!exists $options{'gffs'})
+    {
+        pod2usage(msg=> "ERROR: You need to input some gff3 files to continue!\n");
+    }
+
+    if(!exists $options{'contigs'})
+    {
+        pod2usage(msg=>  "ERROR: You need to give me the location of the contigs to continue!\n") ;
+    }
+
+    if(!exists $options{'protdb'})
+    {
+        pod2usage(msg => "ERROR: You need to give me the location of a proteic BLAST database (UniRef or Nr) to continue!\n");
+    }
+    
+    if(!exists $options{'i2a'})
+    {
+        pod2usage(msg=>  "ERROR: You need to give me the location of the ID to annotations mapping file!\n");
+    }
+
+    return \%options;
+}
+
+sub printAtStart {
+print<<"EOF";
+---------------------------------------------------------------- 
+ $0
+ Copyright (C) 2011 Michael Imelfort
+    
+ This program comes with ABSOLUTELY NO WARRANTY;
+ This is free software, and you are welcome to redistribute it
+ under certain conditions: See the source for more details.
+---------------------------------------------------------------- 
+EOF
+}
+
+__DATA__
+
+=head1 NAME
+
+    mannotator.pl
+
+=head1 COPYRIGHT
+
+   copyright (C) 2011 2012 Michael Imelfort Florent Angly Connor Skennerton
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+=head1 DESCRIPTION
+
+    
+    STEPS:
+
+    BEFORE YOU RUN THE MANOTATOR!
+    
+    1a. Send entire genome out to RAST server.
+    1b. Run entire genome though prodigal
+    
+    You now have 2 gff3 files...
+
+    NOW, UNLEASH THE MANOTATOR!
+
+
+=head1 SYNOPSIS
+
+    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
+
+       -gffs      -g FILE[,FILE]   List of gff3 files in order of trust!
+       -contigs   -c FILE          FASTA file of contigs to be annotated...
+       -protdb    -p LOCATION      Location of the UniRef or Nr BLAST database
+       -i2a       -i FILE          ID to annotations mapping :file
+
+      [-min_len   -m INTEGER   ]   Remove ORFs less than this length (in bp) [default: 100]. Note that this default
+                                   value can cause the removal of, e.g., tRNA genes.
+      [-seq_embed -d           ]   Embed sequences into GFF files (useful to view the annotation in Artemis)     
+      [-threads   -t INTEGER   ]   Number of blast jobs to run [default: 1]
+      [-flatfile  -f           ]   Optionally create multiple genbank files for your contigs [default: do not create]
+      [-blast_prg -b BLAST_TYPE]   The type of blast to run [default: blastx]
+      [-evalue    -e DECIMAL   ]   E-value cut off for blastx [default: 0.000000001]
+      [-out       -o FILE      ]   Filename of the final gff3 file [default: mannotatored.gff3]
+      [-keep      -k           ]   Keep all the tmp directories
+      [-blastx    -x           ]   Keep only the blastx file (overrides -k option)
+      [-sims      -s FILE      ]   Use BLAST similarities given in this file
+      [-one                    ]   Skip step 1 of Mannotator
+      [-two                    ]   Skip step 2 of Mannotator
+      [-three                  ]   Skip step 3 of Mannotator
+      [-four                   ]   Skip step 4 of Mannotator
+      [-five                   ]   Skip step 5 of Mannotator
+      [-help      -h           ]   Displays basic usage information
+         
+=cut
+
