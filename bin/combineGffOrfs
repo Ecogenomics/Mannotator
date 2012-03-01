@@ -3,7 +3,7 @@
 ###############################################################################
 #
 #    combineGffOrfs.pl
-#    
+#
 #    parse a list of gff3 files in order, 
 #
 #    Copyright (C) 2011 2012 Michael Imelfort Florent Angly Connor Skennerton
@@ -104,7 +104,7 @@ foreach my $gff3 (@gff_fns)
     my $ins_ref = \$global_gff_list;
     # loop over the input stream
     while(my $feat = $gffio->next_feature()) {
-        
+
         # filter out orf if it is too short
         if ($feat->length < $default_min_orf_cutoff) {
             debugFeature('Not keeping feature '.feat2str($feat), "less than $default_min_orf_cutoff bp") if ($debug);
@@ -114,10 +114,10 @@ foreach my $gff3 (@gff_fns)
         # then insert
         $ins_ref = insertFeature($ins_ref, \$feat, \$global_gff_list, $debug, $global_shared_olap_cutoff, $global_end_ref);
     }
-    
+
     # clean up
     $gffio->close();
-    
+
     # record keeping
     $global_gff_used_list{$gff3} = $features_used;
 }
@@ -142,7 +142,7 @@ while(nextInList(\$list_handle_ref, $global_end_ref) == 1)
                         $global_seq->subseq($current_node->GO_start, $current_node->GO_end)."\n";
         print $seq_fh $seq_entry;
     }
-    
+
     # check to see if we'll need to do some annotation afterwards...
     print $feat_fh "$gff_string\n";
 }
@@ -233,7 +233,6 @@ __DATA__
     [-ann     -a FILE   ]  File to place fasta type sequences for further annotation [default: todo.fa]
     [-min_len -m INTEGER]  Minimum ORF length (in bp). ORFs smaller than this are discarded [default: 100]
     [-help    -h        ]  Displays basic usage information
-      
-         
+
 =cut
 

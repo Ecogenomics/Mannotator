@@ -41,8 +41,8 @@ BEGIN {
 }
 
 # get input params and print copyright
-printAtStart();
-my $options = checkParams();
+&printAtStart();
+my $options = &checkParams();
 
 ######################################################################
 # CODE HERE
@@ -81,73 +81,99 @@ my $min_len = 100;
 if (exists $options->{'min_len'}) {$min_len = $options->{'min_len'}; }
 
 # use the new blast+ programs rather than blastall
-my $use_new_blast = 1;
+my $use_new_blast = 0;
+if (exists $options->{'new_blast'}) {$use_new_blast = 1;}
 
-#
-# Step 1. Split down the GFF3 and FASTA files into multiple folders
-#
-unless ($options->{'one'})
-{
-    print "Step 1: Splitting GFF and FASTA files into temporary directories\n";
-    splitGffs($options->{'gffs'}, \%global_tmp_folders, \$global_tmp_prefix);
-    print $options->{'contigs'}, "\n";
-    splitFasta($options->{'contigs'}, \$global_tmp_prefix);
-}
+my $num_comma = $options->{'gffs'} =~ tr/,/,/;
+if($num_comma == 0) {
+    # simple mannotator on a single file
+    #
+    print "Step 1: creating ORFs from the gff file\n";
+    &gff2fasta($options->{'gffs'}, $options->{'contigs'}, \$global_tmp_fasta, $global_tmp_prefix.".gff");
 
-#
-# Step 2. For each folder, combine the gff files and produce a list of sequences to be blasted!
-#
-unless($options->{'two'})
-{
-    print "Step 2: Combining Gffs\n";
-    combineGffs($options->{'gffs'}, \%global_tmp_folders, $min_len, \$global_tmp_fasta);
-}
+    print "Step 2: Blasting unknown ORFs against database... This could take some time. Perhaps you need a coffee?\n";
+    &blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
 
-#
-# Step 3. Blast the unknowns against UniRef or Nr proteic database
-#
-unless ($options->{'three'})
-{
-    print "Step 3: Blasting unknown ORFs against protein database... This could take some time. Perhaps you need a coffee?\n";
-    blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
-}
-
-#
-# Step 4. Splitting the BLAST results
-#
-unless ($options->{'four'})
-{
-    print "Step 4: Splitting BLAST results\n";
-    splitBlastResults($options->{'sims'}, \$global_tmp_fasta_prefix, $blast_program, \$global_tmp_prefix, \%global_tmp_folders );
-}
-
-#
-# Step 5. Annotate the GFFs using BLAST results and re-combine!
-#
-unless ($options->{'five'})
-{
     print "Step 5: Annotating using the BLAST results\n";
-    annotate($blast_program, $options->{'seq_embed'},  $options->{'i2a'}, \%global_U2A_hash, \%global_tmp_folders,
-            $options->{'contigs'},  $global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash, $global_output_file );
-}
+    &loadU2A($options->{'i2a'}, \%global_annotations_hash);
 
+    my @blast_files = ($global_tmp_fasta_prefix.$blast_program);
+
+    &generateAnnotations(\@blast_files, \%global_U2A_hash,$global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash );
+
+    &recombineGff3($global_tmp_prefix.".gff", $global_output_file,\%global_annotations_hash);
+
+    # delete our tmp files
+    # only need to delete the tmp gff ourselves then call cleanTemps
+    unlink $global_tmp_prefix.".gff" or die "ERROR: could not delete file $global_tmp_prefix.gff\n$1\n";
+} else {
+
+    #
+    # Step 1. Split down the GFF3 and FASTA files into multiple folders
+    #
+    unless ($options->{'one'})
+    {
+        print "Step 1: Splitting GFF and FASTA files into temporary directories\n";
+        &splitGffs($options->{'gffs'}, \%global_tmp_folders, \$global_tmp_prefix);
+
+        print $options->{'contigs'}, "\n";
+        &splitFasta($options->{'contigs'}, \$global_tmp_prefix);
+    }
+
+    #
+    # Step 2. For each folder, combine the gff files and produce a list of sequences to be blasted!
+    #
+    unless($options->{'two'})
+    {
+        print "Step 2: Combining Gffs\n";
+        &combineGffs($options->{'gffs'}, \%global_tmp_folders, $min_len, \$global_tmp_fasta);
+    }
+
+    #
+    # Step 3. Blast the unknowns against UniRef or Nr proteic database
+    #
+    unless ($options->{'three'})
+    {
+        print "Step 3: Blasting unknown ORFs against database... This could take some time. Perhaps you need a coffee?\n";
+        &blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
+    }
+
+    #
+    # Step 4. Splitting the BLAST results
+    #
+    unless ($options->{'four'})
+    {
+        print "Step 4: Splitting BLAST results\n";
+        &splitBlastResults($options->{'sims'}, \$global_tmp_fasta_prefix, $blast_program, \$global_tmp_prefix, \%global_tmp_folders );
+    }
+
+    #
+    # Step 5. Annotate the GFFs using BLAST results and re-combine!
+    #
+    unless ($options->{'five'})
+    {
+        print "Step 5: Annotating using the BLAST results\n";
+        &annotate($blast_program, $options->{'seq_embed'},  $options->{'i2a'}, \%global_U2A_hash, \%global_tmp_folders,
+            $options->{'contigs'},  $global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash, $global_output_file );
+    }
+}
 #
 # Finally, remove all the temp directories (if we need to)
 #
 if(exists $options->{'blastx'})
 {
     print "Removing all but the blastx file\n";
-    cleanTmps($blast_program, 1, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
+    &cleanTmps($blast_program, 1, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
 }
 elsif(!exists $options->{'keep'})
 {
     print "Cleaning up tmp folders\n";
-    cleanTmps($blast_program, 0, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
+    &cleanTmps($blast_program, 0, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
 }
 
 if(exists $options->{'flatfile'})
 {
-    createFlatFile($options->{'contigs'}, \$global_output_file);
+    &createFlatFile($options->{'contigs'}, \$global_output_file);
 }
 
 ######################################################################
@@ -175,6 +201,7 @@ sub checkParams {
          "five|5+",
          "seq_embed|d",
          "min_len|m:s",
+         "new_blast|n:+"
     );
     my %options;
 
@@ -266,7 +293,7 @@ __DATA__
 
 =head1 SYNOPSIS
 
-    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|p BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
+    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|b BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
 
        -gffs      -g FILE[,FILE]   List of gff3 files in order of trust!
        -contigs   -c FILE          FASTA file of contigs to be annotated...
@@ -284,6 +311,7 @@ __DATA__
       [-keep      -k           ]   Keep all the tmp directories
       [-blastx    -x           ]   Keep only the blastx file (overrides -k option)
       [-sims      -s FILE      ]   Use BLAST similarities given in this file
+      [-new_blast -n           ]   Use the blast+ suite of programs rather than blastall [default: false]
       [-one                    ]   Skip step 1 of Mannotator
       [-two                    ]   Skip step 2 of Mannotator
       [-three                  ]   Skip step 3 of Mannotator

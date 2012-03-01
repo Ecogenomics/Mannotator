@@ -32,7 +32,7 @@ use Bio::Tools::GFF;
 use Class::Struct;
 
 
-our @EXPORT = qw(generateAnnotations loadU2A splitGffs splitFasta combineGffs blastUnknowns splitBlastResults 
+our @EXPORT = qw(gff2fasta generateAnnotations loadU2A splitGffs splitFasta combineGffs blastUnknowns splitBlastResults 
                 cleanTmps annotate createFlatFile insertFeature debugFeature nextInList recombineGff3);
 our $VERSION = '0.1';
 
@@ -50,7 +50,59 @@ sub prodigal_seqname {
     return $seqname;
 }
 
+sub gff2fasta {
+    # this is a simple way of getting the orfs from a single
+    # gff file. Use it when there is no need to do any fancy 
+    # spliting or recombining
+    my ($gff, $fasta, $tmp_fasta_ref, $tmp_gff) = @_;
+    open my $gff_fh, "<", $gff or die "Error: Could not read file $gff\n$!\n";
+    open my $tmp_gff_fh, '>', $tmp_gff or die "ERROR: Could not read file $tmp_gff\n$!\n";
+    print $tmp_gff_fh "##gff-version 3\n";
+    my $gff_def = <$gff_fh>;
+    if ($gff_def !~ m/^##gff-version\s+3/i) {
+        die "Error: File $gff does not seem to be a valid GFF file\nDid not see header line: ##gff-version 3\n";
+    }
+    my $true_fasta_header = undef;
+    my %gff_hash;
+    while(<$gff_fh>){
+          # ##FASTA section indicates end of ##gff section
+            if ($_ =~ m/^##FASTA/i) {
+               last;
+            }
 
+            # comment lines split sequences or include prodigal information
+            if ($_ =~ m/^#(.*)$/) {
+                my $prodigal_seqname = prodigal_seqname($1);
+                $true_fasta_header = $prodigal_seqname if defined $prodigal_seqname;
+                next;
+            }
+      my ($seqid, $field_1, $field_2, $start, $end,
+          $field_5, $field_6, $field_7, $attrs) = split;
+      if (defined $true_fasta_header) {
+          $seqid = $true_fasta_header;
+      }
+      print $tmp_gff_fh "$seqid\t$field_1\t$field_2\t$start\t$end\t$field_5\t$field_6\t$field_7\t$attrs\n";
+      push @{$gff_hash{$seqid}}, [$start, $end, $attrs];
+    }
+    close $gff_fh;
+    open my $out_fasta_fh, '>', ${$tmp_fasta_ref} or die "ERROR: could not read file $fasta\n$1\n";
+
+    my $seqio = Bio::SeqIO-> new( -file => $fasta, -format => 'fasta' );
+     while(my $sobj = $seqio->next_seq){
+         my $seqid = $sobj->id;
+
+        next if not defined $gff_hash{$seqid};
+        my $seq = $sobj->seq;
+
+        for(@{$gff_hash{$seqid}}){
+            my ($start, $end, $attrs) = @$_;
+
+            print $out_fasta_fh ">$seqid"."_".$start."_".$end."\n";
+
+            print $out_fasta_fh substr($seq, $start, $end-$start+1), "\n";
+        }
+    }
+}
 sub splitGffs {
     #----
     # split the gffs into multiple files, one for each sequence
@@ -84,7 +136,6 @@ sub splitGffs {
                 $true_fasta_header = $prodigal_seqname if defined $prodigal_seqname;
                 next;
             }
-            
             my @bits = split /\t/, $_;
             my $fasta_header = $bits[0];
 
@@ -183,7 +234,7 @@ sub combineGffs {
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
-        my $cmd = "combineGffOrfs.pl -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
+        my $cmd = "combineGffOrfs -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
         run($cmd);
 
         # move the unknowns onto the pile
@@ -578,7 +629,7 @@ sub recombineGff3() {
     {
         my $gff_string = $feat->gff_string($gffio_in);
         my @gff_bits = split /\t/, $gff_string;
-        my $feat_key = $gff_bits[0]."_".$feat->start."_".$feat->end;
+        my $feat_key = $gff_bits[0];#."_".$feat->start."_".$feat->end;
         my $annotation = $ann_hash_ref->{$feat_key};
         if( (defined $annotation) && ($annotation ne '__DOOF') )
         {
@@ -600,7 +651,7 @@ sub recombineGff3() {
 sub createFlatFile {
     print "generating genbank files for contigs...";
     my ($contig_file_name, $output_file_ref) = @_;
-    my $cmd = run("gff2genbank.pl $contig_file_name ${$output_file_ref}");
+    my $cmd = run("gff2genbank $contig_file_name ${$output_file_ref}");
     print "done\n";
 }
 
