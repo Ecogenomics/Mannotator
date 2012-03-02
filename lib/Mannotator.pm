@@ -629,7 +629,7 @@ sub recombineGff3() {
     {
         my $gff_string = $feat->gff_string($gffio_in);
         my @gff_bits = split /\t/, $gff_string;
-        my $feat_key = $gff_bits[0];#."_".$feat->start."_".$feat->end;
+        my $feat_key = $gff_bits[0]."_".$feat->start."_".$feat->end;
         my $annotation = $ann_hash_ref->{$feat_key};
         if( (defined $annotation) && ($annotation ne '__DOOF') )
         {
