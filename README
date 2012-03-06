@@ -10,6 +10,10 @@ What is it?
 
 With such an exciting name, you may be forgiven for thinking that the mannotator is something other than a microbial sequence annotator, BUT, you'd be wrong… If you have a microbial assembly, then you can use this tool to annotate your contigs. This tool is not perfect, nor complete. Any and all suggestions are welcome!
 
+"Annotate your contig" (currently) means:
+* Call open reading frames (ORFs) on your contigs or complete genome using a consensus approach (e.g. RAST, Prodigal, others possible)
+* Assign function (KEGG, COG/NOG, eggNOG, Gene Ontology (GO)) to these ORFs using a best blast hit approach
+
 
 ------------------------------------------------
 What to do before I can use it?
