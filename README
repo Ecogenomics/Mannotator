@@ -24,6 +24,10 @@ Step 1: Install Mannotator's dependencies. You'll need Perl and the following Pe
    * Getopt::Euclid
    * URI::Escape
 
+Step 1a: Install optional dependancies
+  * Ruby
+  * bioruby
+
 Step 2: Prepare database files to run your annotations with. Mannotator has support for EMBL Uniref/COG/KEGG and NCBI Nr/Taxonomy
 
 Step 2a: Download your protein database of choice, i.e. Uniref90 (http://www.ebi.ac.uk/uniprot/database/download.html) or Nr (ftp://ftp.ncbi.nih.gov/../blast/db/FASTA/nr.gz)
