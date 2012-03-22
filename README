@@ -84,20 +84,22 @@ The pipeline consists of one data file, two perl scripts which do the work and o
 
 Running the Mannotator will take a while, so perhaps you should use nohup or screen. The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
 
-$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb uniref -i2a Uniref_mappings.txt -seq_embed
+$ mannotator -gffs rast.gff3,prodigal.gff3 -contigs contigs.fa -protdb <uniref_path> -i2a <Uniref_mappings_path> -seq_embed
 
-$ mannotator.pl -gffs rast.gff3 prodigal.gff3 -contigs contigs.fa -protdb nr -i2a Nr_mappings.txt -seq_embed
+$ mannotator -gffs rast.gff3,prodigal.gff3 -contigs contigs.fa -protdb <nr_path> -i2a <Nr_mappings_path> -seq_embed
 
 If you ran your data against both Uniref (for function assignment) and Nr (for taxonomy assignment), you might want to recombine your GFF output files into a single file using the combineGffAnnotations.pl script.
 
 
-Where the uniref file can be found (on Eury) at:
+Where the file for <uniref_path> can be found at ACE:
 
-/Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90.fasta
+Luca: /srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta
+Eury: /Volumes/Biodata/BLAST_databases/UniProt/UniRef90/uniref90.fasta
 
-And the u2a file is at:
+And the file for <Uniref_mappings_path>:
 
-/Volumes/Biodata/ANN_mappings/ANN_mappings.txt
+Luca: /srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt
+Eury: /Volumes/Biodata/ANN_mappings/ANN_mappings.txt
 
 The pipeline will output a file called “mannotatored.gff3”
 
@@ -109,11 +111,11 @@ More info on the scripts themselves
 
 The first is called combineGffOrfs.pl. It will take any number of gff3 files and merge their ORFs into one combined file. Also, it is currently programmed to extract the fasta sequences for ORFs which have not been given a RAST/FIG annotation. This script will run as a stand alone application. The order of the gff3 files is IMPORTANT. You need to supply them in the order in which you trust them.
 
-$ combineGffOrfs.pl -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
+$ combineGffOrfs -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
 
 The second script is called blast2Ann.pl. It will take a Uniref90 blastx result and add KEGG and COG/NOG annotations to your contigs. Again, it can be run as a standalone.
 
-$ blast2ann.pl -u2a|u ANN_file -gff3|g gff3_file
+$ blast2ann -u2a|u ANN_file -gff3|g gff3_file
 
 The ANN_file is a special text file which links Uniref90 IDs to KEGG and COG/NOG IDs. You can find a version of this file on Eury at:
 
