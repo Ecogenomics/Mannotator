@@ -107,12 +107,12 @@ foreach my $gff3 (@gff_fns)
 
         # filter out orf if it is too short
         if ($feat->length < $default_min_orf_cutoff) {
-            debugFeature('Not keeping feature '.feat2str($feat), "less than $default_min_orf_cutoff bp") if ($debug);
+            &debugFeature('Not keeping feature '.feat2str($feat), "less than $default_min_orf_cutoff bp") if ($debug);
             next;
         }
 
         # then insert
-        $ins_ref = insertFeature($ins_ref, \$feat, \$global_gff_list, $debug, $global_shared_olap_cutoff, $global_end_ref);
+        $ins_ref = &insertFeature($ins_ref, \$feat, \$global_gff_list, $debug, $global_shared_olap_cutoff, $global_end_ref);
     }
 
     # clean up

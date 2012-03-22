@@ -234,8 +234,111 @@ sub combineGffs {
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
-        my $cmd = "combineGffOrfs -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
-        run($cmd);
+
+        # globals
+        my %global_gff_used_list = ();
+        my $global_any_inserted = 0;
+
+        # turn debugging on (1) or off (0)
+        my $debug = 0;
+
+        # reject all orfs which overlap with already accepted orfs by 
+        # at least this much
+        my $global_shared_olap_cutoff = 0.1;
+
+        # reject all orfs less than this amount!
+        my $default_min_orf_cutoff = $min_len;
+        #if(exists $options->{'min_len'}) { $default_min_orf_cutoff = $options->{'min_len'}; }
+
+        # output gff3 file
+        my $default_feat_file = $combined_file;#'parsed.gff3';
+        #if(exists $options->{'out'}) { $default_feat_file = $options->{'out'}; }
+        open my $feat_fh, ">", $default_feat_file or die "Error: Could not write file $default_feat_file\n$!\n";
+
+        # output todo annotation file
+        my $default_seq_file = $unknowns_file;#'todo.fa';
+        #if(exists $options->{'ann'}) { $default_seq_file = $options->{'ann'}; }
+        open my $seq_fh, ">", $default_seq_file or die "Error: Could not write file $default_seq_file\n$!\n";
+
+        # first parse the fasta file of contigs to get headers and sequence lengths...
+        # really there should only be one guy here...
+        my $seqio_object = Bio::SeqIO->new(-file => $sequence_file, -format => 'fasta');
+        my $global_seq = $seqio_object->next_seq;
+        my $global_seq_length = $global_seq->length;
+        $seqio_object->close;
+
+        # initialise the linked list
+        my $global_gff_list = GffObject->new();
+        $global_gff_list->GO_prevGO_ref(\$global_gff_list);
+        $global_gff_list->GO_nextGO_ref(\$global_gff_list);
+        $global_gff_list->GO_next_start($global_seq_length);
+        $global_gff_list->GO_start($global_seq_length);
+        $global_gff_list->GO_end(0);
+
+        #nd value used so we don't loop the loop!
+        my $global_end_ref = \$global_gff_list;
+
+        # get all the gff file names!
+        my @gff_fns = split /,/, $gff_str;
+        foreach my $gff3 (@gff_fns)
+        {
+            if (not -e $gff3) {
+                die "Error: Could not read GFF file $gff3\n$!\n";
+            }
+
+            # specify input via -fh or -file
+            my $gffio = Bio::Tools::GFF->new(-file => $gff3, -gff_version => 3);
+            my $features_used = 0;
+
+            my $ins_ref = \$global_gff_list;
+            # loop over the input stream
+            while(my $feat = $gffio->next_feature()) {
+
+                # filter out orf if it is too short
+                if ($feat->length < $default_min_orf_cutoff) {
+                    &debugFeature('Not keeping feature '.feat2str($feat), "less than $default_min_orf_cutoff bp") if ($debug);
+                    next;
+                }
+
+                # then insert
+                $ins_ref = &insertFeature($ins_ref, \$feat, \$global_gff_list, $debug, $global_shared_olap_cutoff, $global_end_ref);
+            }
+
+            # clean up
+            $gffio->close();
+
+            # record keeping
+            $global_gff_used_list{$gff3} = $features_used;
+        }
+
+
+
+        # print to the output file
+        print $feat_fh "##gff-version 3\n";
+        my $gffio = Bio::Tools::GFF->new(-gff_version => 3);
+        my $list_handle_ref = \$global_gff_list;
+        while(nextInList(\$list_handle_ref, $global_end_ref) == 1)
+        {
+            my $current_node = ${$list_handle_ref};
+            my $current_feat_ref = $current_node->GO_gffRef;
+            my $current_feature = ${$current_feat_ref};
+            my $gff_string = $current_feature->gff_string($gffio);
+            my @gff_bits = split /\t/, $gff_string;
+
+            # Write sequence except if it is a RAST annotated gene
+            unless( ($gff_bits[1] eq 'FIG') && ($gff_bits[8] !~ /hypothetical/) ) {
+                my $seq_entry = '>'.$gff_bits[0].'_'.$current_node->GO_start.'_'.$current_node->GO_end."\n".
+                                $global_seq->subseq($current_node->GO_start, $current_node->GO_end)."\n";
+                print $seq_fh $seq_entry;
+            }
+
+            # check to see if we'll need to do some annotation afterwards...
+            print $feat_fh "$gff_string\n";
+        }
+
+
+        #my $cmd = "combineGffOrfs -c $sequence_file -g $gff_str -o $combined_file -a $unknowns_file -m $min_len";
+        #run($cmd);
 
         # move the unknowns onto the pile
         concat( $unknowns_file, $$tmp_fasta_ref );

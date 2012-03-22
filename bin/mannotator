@@ -2,7 +2,7 @@
 
 ###############################################################################
 #
-#    mannotator.pl
+#    mannotator
 #    
 #    Annotate a genome!
 #
@@ -28,7 +28,8 @@ use strict;
 use warnings;
 
 #perl modules
-use Getopt::Long;
+#use Getopt::Long;
+use Getopt::Euclid;
 use Mannotator;
 use Pod::Usage;
 #locally-written modules
@@ -42,7 +43,7 @@ BEGIN {
 
 # get input params and print copyright
 &printAtStart();
-my $options = &checkParams();
+#my $options = &checkParams();
 
 ######################################################################
 # CODE HERE
@@ -57,194 +58,159 @@ my $global_tmp_fasta_prefix = $global_tmp_prefix.'_unknowns';
 my $global_tmp_fasta = $global_tmp_fasta_prefix.'.fna';
 my %global_tmp_folders = ();
 
-# Mannotator output file
-my $global_output_file = "mannotatored.gff3";
-if(exists $options->{'out'}) { $global_output_file = $options->{'out'}; }
-
-# evalue cutoff
-my $global_evalue_cutoff = 0.000000001;
-if(exists $options->{'evalue'}) { $global_evalue_cutoff = $options->{'evalue'}; }
-
 # results cut off
 my $global_results_max_cut_off = 1; # use the top BLAST similarity only
 
-# BLAST program to run
-my $blast_program = "blastx";
-if (exists $options->{'blast_prg'}) { $blast_program = $options->{'blast_prg'}; }
-
-# Number of BLAST threads
-my $threads = 1;
-if (exists $options->{'threads'}) {$threads = $options->{'threads'}; }
-
-# Minimum ORF length to keep (in bp)
-my $min_len = 100;
-if (exists $options->{'min_len'}) {$min_len = $options->{'min_len'}; }
-
 # use the new blast+ programs rather than blastall
 my $use_new_blast = 0;
-if (exists $options->{'new_blast'}) {$use_new_blast = 1;}
+if (exists $ARGV{'-n'}) {$use_new_blast = 1;}
 
-my $num_comma = $options->{'gffs'} =~ tr/,/,/;
-if($num_comma == 0) {
-    # simple mannotator on a single file
-    #
+# check the gff option for spaces or commas
+
+if (scalar @{$ARGV{'-g'}} == 1) {
+    # single file (maybe commas)
+
+    my $num_comma = $ARGV{'-g'}->[0] =~ tr/,/,/;
+    if($num_comma == 0) {
+        #definately single file
+        &singleFileWorkflow($ARGV{'-g'}->[0], $ARGV{'-c'}, \$global_tmp_fasta, \$global_tmp_prefix, $ARGV{'-s'}, 
+                            $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $use_new_blast, $ARGV{'-i'}, \%global_annotations_hash,
+                            \%global_U2A_hash, $ARGV{'-e'}, $global_results_max_cut_off, $ARGV{'-o'}, \$global_tmp_fasta_prefix );
+    } else {
+        # got some commas, multifile
+        &multiFileWorkflow($ARGV{'-g'}->[0], \%global_tmp_folders, \$global_tmp_prefix, $ARGV{'-c'}, $ARGV{'-m'}, \$global_tmp_fasta, $ARGV{'-s'}, 
+                       \$global_tmp_fasta_prefix, $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $ARGV{'-n'}, $ARGV{'-d'}, $ARGV{'-i'}, \%global_U2A_hash,
+                       $ARGV{'-e'}, $global_results_max_cut_off, \%global_annotations_hash, $ARGV{'-o'}, $ARGV{'--one'}, $ARGV{'--two'}, 
+                       $ARGV{'--three'}, $ARGV{'--four'}, $ARGV{'--five'});
+    }
+} else {
+    # multiple instanses
+    my $gff_files = join (",",@{$ARGV{'-g'}});
+    &multiFileWorkflow($gff_files, \%global_tmp_folders, \$global_tmp_prefix, $ARGV{'-c'}, $ARGV{'-m'}, \$global_tmp_fasta, $ARGV{'-s'}, 
+                       \$global_tmp_fasta_prefix, $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $ARGV{'-n'}, $ARGV{'-d'}, $ARGV{'-i'}, \%global_U2A_hash,
+                       $ARGV{'-e'}, $global_results_max_cut_off, \%global_annotations_hash, $ARGV{'-o'}, $ARGV{'--one'}, $ARGV{'--two'}, 
+                       $ARGV{'--three'}, $ARGV{'--four'}, $ARGV{'--five'});
+}
+
+#
+# Finally, remove all the temp directories (if we need to)
+#
+if(exists $ARGV{'-x'})
+{
+    print "Removing all but the blastx file\n";
+    &cleanTmps($ARGV{'-b'}, 1, \%global_tmp_folders, \$global_tmp_fasta, $ARGV{'-s'}, $ARGV{'-t'}, $global_tmp_fasta_prefix);
+}
+elsif(!exists $ARGV{'-k'})
+{
+    print "Cleaning up tmp folders\n";
+    &cleanTmps($ARGV{'-b'}, 0, \%global_tmp_folders, \$global_tmp_fasta,  $ARGV{'-s'}, $ARGV{'-t'}, $global_tmp_fasta_prefix);
+}
+
+if(exists $ARGV{'-f'})
+{
+    &createFlatFile($ARGV{'-c'}, \$ARGV{'-o'});
+}
+
+
+sub singleFileWorkflow {
+
+    my ($gff_files, $contig_files, $tmp_fasta_ref, $tmp_prefix_ref, $sims_file, 
+        $threads, $blast_program, $blastdb, $new_blast, $mapping_file, $annotations_hash_ref,
+        $u2a_hash_ref, $evalue, $max_results_cutoff, $output_file, $tmp_fasta_prefix_ref) = @_;
+
     print "Step 1: creating ORFs from the gff file\n";
-    &gff2fasta($options->{'gffs'}, $options->{'contigs'}, \$global_tmp_fasta, $global_tmp_prefix.".gff");
+    &gff2fasta($gff_files, $contig_files, $tmp_fasta_ref, ${$tmp_prefix_ref}.".gff");
 
     print "Step 2: Blasting unknown ORFs against database... This could take some time. Perhaps you need a coffee?\n";
-    &blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
+    &blastUnknowns($sims_file, $tmp_fasta_ref, $tmp_fasta_prefix_ref, $threads, $blast_program, \$blastdb, $new_blast);
 
     print "Step 5: Annotating using the BLAST results\n";
-    &loadU2A($options->{'i2a'}, \%global_annotations_hash);
+    &loadU2A($mapping_file, $annotations_hash_ref);
 
-    my @blast_files = ($global_tmp_fasta_prefix.$blast_program);
+    my @blast_files = (${$tmp_fasta_prefix_ref}.$blast_program);
 
-    &generateAnnotations(\@blast_files, \%global_U2A_hash,$global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash );
+    &generateAnnotations(\@blast_files, $u2a_hash_ref, $evalue, $max_results_cutoff, $annotations_hash_ref );
 
-    &recombineGff3($global_tmp_prefix.".gff", $global_output_file,\%global_annotations_hash);
+    &recombineGff3(${$tmp_prefix_ref}.".gff", $output_file, $annotations_hash_ref);
 
     # delete our tmp files
     # only need to delete the tmp gff ourselves then call cleanTemps
-    unlink $global_tmp_prefix.".gff" or die "ERROR: could not delete file $global_tmp_prefix.gff\n$1\n";
-} else {
+    unlink ${$tmp_prefix_ref}.".gff" or die "ERROR: could not delete file ${$tmp_prefix_ref}.gff\n$1\n";
+
+}
+
+sub multiFileWorkflow {
+    
+    my ($gff_files, $tmp_folders_ref, $tmp_prefix_ref, $contig_file, $min_len, $tmp_fasta_ref,
+        $sims_file, $tmp_fasta_prefix_ref, $threads, $blast_program, $blastdb, $new_blast,
+        $seq_embed,$mapping_file, $u2a_hash_ref,$evalue, $results_cutoff, $ann_hash_ref, $output_file,
+        $one, $two, $three, $four, $five ) = @_;
 
     #
     # Step 1. Split down the GFF3 and FASTA files into multiple folders
     #
-    unless ($options->{'one'})
+    unless ($one)
     {
         print "Step 1: Splitting GFF and FASTA files into temporary directories\n";
-        &splitGffs($options->{'gffs'}, \%global_tmp_folders, \$global_tmp_prefix);
-
-        print $options->{'contigs'}, "\n";
-        &splitFasta($options->{'contigs'}, \$global_tmp_prefix);
+        #&splitGffs($options->{'gffs'}, \%global_tmp_folders, \$global_tmp_prefix);
+        &splitGffs($gff_files, $tmp_folders_ref, $tmp_prefix_ref);
+        #print $options->{'contigs'}, "\n";
+        #&splitFasta($options->{'contigs'}, \$global_tmp_prefix);
+        &splitFasta($contig_file, $tmp_prefix_ref);
     }
 
     #
     # Step 2. For each folder, combine the gff files and produce a list of sequences to be blasted!
     #
-    unless($options->{'two'})
+    unless($two)
     {
         print "Step 2: Combining Gffs\n";
-        &combineGffs($options->{'gffs'}, \%global_tmp_folders, $min_len, \$global_tmp_fasta);
+        #&combineGffs($options->{'gffs'}, \%global_tmp_folders, $min_len, \$global_tmp_fasta);
+        &combineGffs($gff_files, $tmp_folders_ref, $min_len, $tmp_fasta_ref);
     }
 
     #
     # Step 3. Blast the unknowns against UniRef or Nr proteic database
     #
-    unless ($options->{'three'})
+    unless ($three)
     {
         print "Step 3: Blasting unknown ORFs against database... This could take some time. Perhaps you need a coffee?\n";
-        &blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
+        #&blastUnknowns($options->{'sims'}, \$global_tmp_fasta, \$global_tmp_fasta_prefix, $threads, $blast_program, \$options->{'protdb'}, $use_new_blast);
+        &blastUnknowns($sims_file, $tmp_fasta_ref, $tmp_fasta_prefix_ref, $threads, $blast_program, \$blastdb, $new_blast);
     }
 
     #
     # Step 4. Splitting the BLAST results
     #
-    unless ($options->{'four'})
+    unless ($four)
     {
         print "Step 4: Splitting BLAST results\n";
-        &splitBlastResults($options->{'sims'}, \$global_tmp_fasta_prefix, $blast_program, \$global_tmp_prefix, \%global_tmp_folders );
+        #&splitBlastResults($options->{'sims'}, \$global_tmp_fasta_prefix, $blast_program, \$global_tmp_prefix, \%global_tmp_folders );
+        &splitBlastResults($sims_file, $tmp_fasta_ref, $blast_program, $tmp_prefix_ref, $tmp_folders_ref);
     }
 
     #
     # Step 5. Annotate the GFFs using BLAST results and re-combine!
     #
-    unless ($options->{'five'})
+    unless ($five)
     {
         print "Step 5: Annotating using the BLAST results\n";
-        &annotate($blast_program, $options->{'seq_embed'},  $options->{'i2a'}, \%global_U2A_hash, \%global_tmp_folders,
-            $options->{'contigs'},  $global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash, $global_output_file );
+        #&annotate($blast_program, $options->{'seq_embed'},  $options->{'i2a'}, \%global_U2A_hash, \%global_tmp_folders,
+        #    $options->{'contigs'},  $global_evalue_cutoff, $global_results_max_cut_off, \%global_annotations_hash, $global_output_file );
+        &annotate($blast_program, $seq_embed, $mapping_file, $u2a_hash_ref, $tmp_folders_ref, $contig_file, $evalue, $results_cutoff, $ann_hash_ref, $output_file )
     }
-}
-#
-# Finally, remove all the temp directories (if we need to)
-#
-if(exists $options->{'blastx'})
-{
-    print "Removing all but the blastx file\n";
-    &cleanTmps($blast_program, 1, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
-}
-elsif(!exists $options->{'keep'})
-{
-    print "Cleaning up tmp folders\n";
-    &cleanTmps($blast_program, 0, \%global_tmp_folders, \$global_tmp_fasta, $options->{'sims'}, $threads, $global_tmp_fasta_prefix);
-}
 
-if(exists $options->{'flatfile'})
-{
-    &createFlatFile($options->{'contigs'}, \$global_output_file);
 }
-
 ######################################################################
 # TEMPLATE SUBS
 ######################################################################
-sub checkParams {
-    my @standard_options = (
-         "help|h+",
-         "gffs|g:s",
-         "keep|k+",
-         "contigs|c:s",
-         "i2a|i:s",
-         "protdb|p:s",
-         "out|o:s",
-         "blastx|x:+",
-         "sims|s:s",
-         "evalue|e:s",
-         "blast_prg|b:s",
-         "flatfile|f:+",
-         "threads|t:s",
-         "one|1+",
-         "two|2+",
-         "three|3+",
-         "four|4+",
-         "five|5+",
-         "seq_embed|d",
-         "min_len|m:s",
-         "new_blast|n:+"
-    );
-    my %options;
-
-    # Add any other command line options, and the code to handle them
-    # 
-    GetOptions( \%options, @standard_options );
-
-    # if no arguments supplied print the usage and exit
-    #
-    pod2usage() if (0 == (keys (%options) ));
-
-    # If the -help option is set, print the usage and exit
-    #
-    pod2usage() if $options{'help'};
-    
-    if(!exists $options{'gffs'})
-    {
-        pod2usage(msg=> "ERROR: You need to input some gff3 files to continue!\n");
-    }
-
-    if(!exists $options{'contigs'})
-    {
-        pod2usage(msg=>  "ERROR: You need to give me the location of the contigs to continue!\n") ;
-    }
-
-    if(!exists $options{'protdb'})
-    {
-        pod2usage(msg => "ERROR: You need to give me the location of a proteic BLAST database (UniRef or Nr) to continue!\n");
-    }
-    
-    if(!exists $options{'i2a'})
-    {
-        pod2usage(msg=>  "ERROR: You need to give me the location of the ID to annotations mapping file!\n");
-    }
-
-    return \%options;
-}
 
 sub printAtStart {
 print<<"EOF";
 ---------------------------------------------------------------- 
  $0
- Copyright (C) 2011 Michael Imelfort
+ Copyright (C) 2011, 2012 
+ Michael Imelfort, Florent Angly, Connor Skennerton
     
  This program comes with ABSOLUTELY NO WARRANTY;
  This is free software, and you are welcome to redistribute it
@@ -257,11 +223,16 @@ __DATA__
 
 =head1 NAME
 
-    mannotator.pl
+    mannotator
+
+=head1 VERSION
+
+    0.1
 
 =head1 COPYRIGHT
 
-   copyright (C) 2011 2012 Michael Imelfort Florent Angly Connor Skennerton
+   copyright (C) 2011, 2012 
+   Michael Imelfort, Florent Angly, Connor Skennerton
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,6 +261,127 @@ __DATA__
 
     NOW, UNLEASH THE MANOTATOR!
 
+=head1 REQUIRED ARGUMENTS
+
+=over
+
+=item -g <gff>... | --gffs <gff>...
+
+A comma or space separated list of gff3 formatted files
+
+=item -c <contig> | --contigs <contig>
+
+A fasta formated file containing contigs
+
+=For Euclid:
+    contig.type: readable
+    contig.type.error: cannot open <contig>
+
+=back
+
+=head1 OPTIONS
+
+=item -p <protdb> | --protein-db <protdb>
+
+Specify a custom location for a blast database of sequences
+
+=For Euclid:
+    protdb.default: /srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta
+    protdb.type: readable
+
+=item -i <mapping> | --i2a <mapping>
+
+Specify a custom location for the database accession number mapping file
+
+=For Euclid:
+    mapping.default: /srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt
+
+=item -m <minlen> | --minimum-length <minlen>
+
+Remove ORFs less than this length (in bp)
+
+=For Euclid:
+    minlen.dedault: 100
+    minlen.type: +integer
+    minlen.type.error: <minlen> must be a positive integer
+
+=item -d | --seq-embed
+
+Embed sequences into GFF files (useful to view the annotation in Artemis)
+
+=item -f | --flat-file
+
+ Optionally create multiple genbank files for your contigs
+
+=item -b <blastprog> | --blast-program <blastprog>
+
+The type of blast to run
+
+=For Euclid:
+    blastprog.default: blastx
+
+=item -e <evalue> | --evalue <evalue>
+
+E-value cutoff when running blast
+
+=For Euclid:
+    evalue.default: 1e-8
+    evalue.type: num
+    evalue.type.error: <evalue> must be a number
+
+=item -t <threads> | --threads <threads>
+
+Run blast on multiple threads
+
+=For Euclid:
+    threads.default: 1
+    threads.type: int, threads > 0 && threads < 45
+    threads.type.error: the number of threads must be between 1 and 44 (inclusive)
+
+=item -o <outfile> | --outfile <outfile>
+
+Filename for the final gff3 file
+
+=For Euclid:
+    outfile.default: mannotatored.gff3
+    outfile.type: writable
+    outfile.type.error: You do not have permission to write to <outfile>
+
+=item -k | --keep-tmp
+
+Keep all tmp files and directories created
+
+=item -x | --keep-blast
+
+Keep only the blast results and delete all other tmp files
+
+=item -s | --blast-sims
+
+Use a precomputed blast output file
+
+=item -n | --blast+
+
+Use the blast+ toolkit, default is to use blastall
+
+=item --one
+
+Skip step one of the mannotator
+
+=item --two
+
+Skip step two of the mannotator
+
+=item --three
+
+skip step three of the mannotator
+
+=item --four
+
+Skip step four of the mannotator
+
+=item --five
+
+Skip step five of the mannotator
 
 =head1 SYNOPSIS
 
