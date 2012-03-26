@@ -30,7 +30,7 @@ use Bio::Seq;
 use Bio::SearchIO;
 use Bio::Tools::GFF;
 use Class::Struct;
-
+use Carp;
 
 our @EXPORT = qw(gff2fasta generateAnnotations loadU2A splitGffs splitFasta combineGffs blastUnknowns splitBlastResults 
                 cleanTmps annotate createFlatFile insertFeature debugFeature nextInList recombineGff3);
@@ -214,6 +214,8 @@ sub combineGffs {
     # by calling an external script
     #
     my ($gff_files, $tmp_folders_ref, $min_len, $tmp_fasta_ref) = @_;
+    unless(defined $gff_files) { confess "No gff files given (uninitialized variable)";}
+    unless(defined $min_len) { confess "No minimum length provided (uninitialized variable)";}
     my @gffs = split /,/, $gff_files;
     foreach my $current_folder (keys %{$tmp_folders_ref})
     {
@@ -230,7 +232,6 @@ sub combineGffs {
         }
         $gff_str =~ s/,$//; # take off the last comma
         
-        # run the external script!
         my $sequence_file = catfile( $current_folder, "sequence.fa" );
         my $unknowns_file = catfile( $current_folder, "unknowns.fa" );
         my $combined_file = catfile( $current_folder, "combined.gff3" );
@@ -253,16 +254,25 @@ sub combineGffs {
         # output gff3 file
         my $default_feat_file = $combined_file;#'parsed.gff3';
         #if(exists $options->{'out'}) { $default_feat_file = $options->{'out'}; }
-        open my $feat_fh, ">", $default_feat_file or die "Error: Could not write file $default_feat_file\n$!\n";
 
-        # output todo annotation file
-        my $default_seq_file = $unknowns_file;#'todo.fa';
-        #if(exists $options->{'ann'}) { $default_seq_file = $options->{'ann'}; }
-        open my $seq_fh, ">", $default_seq_file or die "Error: Could not write file $default_seq_file\n$!\n";
+        my $seqio_object;
+        my $feat_fh;
+        my $seq_fh;
+        eval {
+            open $feat_fh, ">", $default_feat_file or confess "Error: Could not write defuault_feat_file: $default_feat_file";
 
-        # first parse the fasta file of contigs to get headers and sequence lengths...
-        # really there should only be one guy here...
-        my $seqio_object = Bio::SeqIO->new(-file => $sequence_file, -format => 'fasta');
+            # output todo annotation file
+            my $default_seq_file = $unknowns_file;#'todo.fa';
+            #if(exists $options->{'ann'}) { $default_seq_file = $options->{'ann'}; }
+            open $seq_fh, ">", $default_seq_file or confess "Error: Could not write default_seq_file: $default_seq_file";
+
+            # filerst parse the fasta file of contigs to get headers and sequence lengths...
+            # really there should only be one guy here...
+            $seqio_object = Bio::SeqIO->new(-file => $sequence_file, -format => 'fasta');
+            1;
+        } or do {
+            confess "cannot open file\n$@\n";
+        };
         my $global_seq = $seqio_object->next_seq;
         my $global_seq_length = $global_seq->length;
         $seqio_object->close;
@@ -283,7 +293,7 @@ sub combineGffs {
         foreach my $gff3 (@gff_fns)
         {
             if (not -e $gff3) {
-                die "Error: Could not read GFF file $gff3\n$!\n";
+                confess "Error: Could not read GFF file $gff3\n$!\n";
             }
 
             # specify input via -fh or -file
@@ -295,8 +305,8 @@ sub combineGffs {
             while(my $feat = $gffio->next_feature()) {
 
                 # filter out orf if it is too short
-                if ($feat->length < $default_min_orf_cutoff) {
-                    &debugFeature('Not keeping feature '.feat2str($feat), "less than $default_min_orf_cutoff bp") if ($debug);
+                if ($feat->length < $min_len) {
+                    &debugFeature('Not keeping feature '.feat2str($feat), "less than $min_len bp") if ($debug);
                     next;
                 }
 
@@ -372,7 +382,13 @@ sub blastUnknowns {
     if ($threads > 1)
     {
         my $num_seq_per_file = int ($num_seq / $threads);
-        my $seqio_global = Bio::SeqIO->new(-file => ${$tmp_fasta_ref}, -format => 'fasta');
+        my $seqio_global;
+        eval {
+            $seqio_global = Bio::SeqIO->new(-file => ${$tmp_fasta_ref}, -format => 'fasta');
+            1;
+        } or do {
+            confess "Cannot open seqio_global: $seqio_global\n$@\n";
+        };
         print "Splitting ${$tmp_fasta_ref} into $threads parts, $num_seq_per_file sequence(s) per file\n";
 
         # Open output files
@@ -383,11 +399,17 @@ sub blastUnknowns {
         {
             my $tmp_fasta = ${$tmp_fasta_prefix_ref}.'_'.$i.'.fna';
             push @out_files, $tmp_fasta;
-            my $seqio_out = Bio::SeqIO->new(
-                -file   => '>'.$tmp_fasta,
-                -format => 'fasta',
-                -flush  => 0, # go as fast as we can!
-            );
+            my $seqio_out;
+            eval {
+                $seqio_out = Bio::SeqIO->new(
+                    -file   => '>'.$tmp_fasta,
+                    -format => 'fasta',
+                    -flush  => 0, # go as fast as we can!
+                );
+                1;
+            } or do {
+                confess "cannot open tmp_fasta\n$@\n";
+            };
             push @out_fhs, $seqio_out;
             my $tmp_blast = ${$tmp_fasta_prefix_ref}.'_'.$i.'.'.$blast_program;
             push @tmp_blast_files, $tmp_blast;

@@ -31,7 +31,7 @@ use warnings;
 #use Getopt::Long;
 use Getopt::Euclid;
 use Mannotator;
-use Pod::Usage;
+#use Pod::Usage;
 #locally-written modules
 
 BEGIN {
@@ -78,6 +78,7 @@ if (scalar @{$ARGV{'-g'}} == 1) {
                             \%global_U2A_hash, $ARGV{'-e'}, $global_results_max_cut_off, $ARGV{'-o'}, \$global_tmp_fasta_prefix );
     } else {
         # got some commas, multifile
+        print "$ARGV{'-m'}\n";
         &multiFileWorkflow($ARGV{'-g'}->[0], \%global_tmp_folders, \$global_tmp_prefix, $ARGV{'-c'}, $ARGV{'-m'}, \$global_tmp_fasta, $ARGV{'-s'}, 
                        \$global_tmp_fasta_prefix, $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $ARGV{'-n'}, $ARGV{'-d'}, $ARGV{'-i'}, \%global_U2A_hash,
                        $ARGV{'-e'}, $global_results_max_cut_off, \%global_annotations_hash, $ARGV{'-o'}, $ARGV{'--one'}, $ARGV{'--two'}, 
@@ -145,7 +146,7 @@ sub multiFileWorkflow {
         $sims_file, $tmp_fasta_prefix_ref, $threads, $blast_program, $blastdb, $new_blast,
         $seq_embed,$mapping_file, $u2a_hash_ref,$evalue, $results_cutoff, $ann_hash_ref, $output_file,
         $one, $two, $three, $four, $five ) = @_;
-
+    print "$min_len\n";
     #
     # Step 1. Split down the GFF3 and FASTA files into multiple folders
     #
@@ -273,7 +274,7 @@ A comma or space separated list of gff3 formatted files
 
 A fasta formated file containing contigs
 
-=For Euclid:
+=for Euclid:
     contig.type: readable
     contig.type.error: cannot open <contig>
 
@@ -281,11 +282,13 @@ A fasta formated file containing contigs
 
 =head1 OPTIONS
 
+=over
+
 =item -p <protdb> | --protein-db <protdb>
 
 Specify a custom location for a blast database of sequences
 
-=For Euclid:
+=for Euclid:
     protdb.default: /srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta
     protdb.type: readable
 
@@ -293,15 +296,15 @@ Specify a custom location for a blast database of sequences
 
 Specify a custom location for the database accession number mapping file
 
-=For Euclid:
+=for Euclid:
     mapping.default: /srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt
 
 =item -m <minlen> | --minimum-length <minlen>
 
-Remove ORFs less than this length (in bp)
+Remove ORFs less than this length (in bp). Default: minlen.default bp
 
-=For Euclid:
-    minlen.dedault: 100
+=for Euclid:
+    minlen.default: 100
     minlen.type: +integer
     minlen.type.error: <minlen> must be a positive integer
 
@@ -317,14 +320,14 @@ Embed sequences into GFF files (useful to view the annotation in Artemis)
 
 The type of blast to run
 
-=For Euclid:
+=for Euclid:
     blastprog.default: blastx
 
 =item -e <evalue> | --evalue <evalue>
 
 E-value cutoff when running blast
 
-=For Euclid:
+=for Euclid:
     evalue.default: 1e-8
     evalue.type: num
     evalue.type.error: <evalue> must be a number
@@ -333,7 +336,7 @@ E-value cutoff when running blast
 
 Run blast on multiple threads
 
-=For Euclid:
+=for Euclid:
     threads.default: 1
     threads.type: int, threads > 0 && threads < 45
     threads.type.error: the number of threads must be between 1 and 44 (inclusive)
@@ -342,7 +345,7 @@ Run blast on multiple threads
 
 Filename for the final gff3 file
 
-=For Euclid:
+=for Euclid:
     outfile.default: mannotatored.gff3
     outfile.type: writable
     outfile.type.error: You do not have permission to write to <outfile>
@@ -383,33 +386,7 @@ Skip step four of the mannotator
 
 Skip step five of the mannotator
 
-=head1 SYNOPSIS
+=back
 
-    mannotator.pl -gffs|g GFF_FILE1[,GFF_FILE2...] -contigs|c FILE -blast_prg|b BLAST_TYPE -protdb|p LOCATION -i2a|i FILE
-
-       -gffs      -g FILE[,FILE]   List of gff3 files in order of trust!
-       -contigs   -c FILE          FASTA file of contigs to be annotated...
-       -protdb    -p LOCATION      Location of the UniRef or Nr BLAST database
-       -i2a       -i FILE          ID to annotations mapping :file
-
-      [-min_len   -m INTEGER   ]   Remove ORFs less than this length (in bp) [default: 100]. Note that this default
-                                   value can cause the removal of, e.g., tRNA genes.
-      [-seq_embed -d           ]   Embed sequences into GFF files (useful to view the annotation in Artemis)     
-      [-threads   -t INTEGER   ]   Number of blast jobs to run [default: 1]
-      [-flatfile  -f           ]   Optionally create multiple genbank files for your contigs [default: do not create]
-      [-blast_prg -b BLAST_TYPE]   The type of blast to run [default: blastx]
-      [-evalue    -e DECIMAL   ]   E-value cut off for blastx [default: 0.000000001]
-      [-out       -o FILE      ]   Filename of the final gff3 file [default: mannotatored.gff3]
-      [-keep      -k           ]   Keep all the tmp directories
-      [-blastx    -x           ]   Keep only the blastx file (overrides -k option)
-      [-sims      -s FILE      ]   Use BLAST similarities given in this file
-      [-new_blast -n           ]   Use the blast+ suite of programs rather than blastall [default: false]
-      [-one                    ]   Skip step 1 of Mannotator
-      [-two                    ]   Skip step 2 of Mannotator
-      [-three                  ]   Skip step 3 of Mannotator
-      [-four                   ]   Skip step 4 of Mannotator
-      [-five                   ]   Skip step 5 of Mannotator
-      [-help      -h           ]   Displays basic usage information
-         
 =cut
 
