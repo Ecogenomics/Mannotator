@@ -187,7 +187,7 @@ sub multiFileWorkflow {
     {
         print "Step 4: Splitting BLAST results\n";
         #&splitBlastResults($options->{'sims'}, \$global_tmp_fasta_prefix, $blast_program, \$global_tmp_prefix, \%global_tmp_folders );
-        &splitBlastResults($sims_file, $tmp_fasta_ref, $blast_program, $tmp_prefix_ref, $tmp_folders_ref);
+        &splitBlastResults($sims_file, $tmp_fasta_prefix_ref, $blast_program, $tmp_prefix_ref, $tmp_folders_ref);
     }
 
     #
@@ -286,18 +286,20 @@ A fasta formated file containing contigs
 
 =item -p <protdb> | --protein-db <protdb>
 
-Specify a custom location for a blast database of sequences
+Specify a custom location for a blast database of sequences Default: protdb.default
 
 =for Euclid:
-    protdb.default: /srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta
+    protdb.default: '/srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta'
     protdb.type: readable
 
 =item -i <mapping> | --i2a <mapping>
 
-Specify a custom location for the database accession number mapping file
+Specify a custom location for the database accession number mapping file Default: mapping.default
 
 =for Euclid:
-    mapping.default: /srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt
+    mapping.default: '/srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt'
+    mapping.type: readable
+    mapping.type.error: cannot read file <mapping>
 
 =item -m <minlen> | --minimum-length <minlen>
 
@@ -321,7 +323,7 @@ Embed sequences into GFF files (useful to view the annotation in Artemis)
 The type of blast to run
 
 =for Euclid:
-    blastprog.default: blastx
+    blastprog.default: 'blastx'
 
 =item -e <evalue> | --evalue <evalue>
 
@@ -346,7 +348,7 @@ Run blast on multiple threads
 Filename for the final gff3 file
 
 =for Euclid:
-    outfile.default: mannotatored.gff3
+    outfile.default: 'mannotatored.gff3'
     outfile.type: writable
     outfile.type.error: You do not have permission to write to <outfile>
 
