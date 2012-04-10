@@ -84,9 +84,9 @@ The pipeline consists of one data file, two perl scripts which do the work and o
 
 Running the Mannotator will take a while, so perhaps you should use nohup or screen. The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
 
-$ mannotator -gffs rast.gff3,prodigal.gff3 -contigs contigs.fa -protdb <uniref_path> -i2a <Uniref_mappings_path> -seq_embed
+$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa -p <uniref_path> -i <Uniref_mappings_path> -d
 
-$ mannotator -gffs rast.gff3,prodigal.gff3 -contigs contigs.fa -protdb <nr_path> -i2a <Nr_mappings_path> -seq_embed
+$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa -p <nr_path> -i <Nr_mappings_path> -d
 
 If you ran your data against both Uniref (for function assignment) and Nr (for taxonomy assignment), you might want to recombine your GFF output files into a single file using the combineGffAnnotations.pl script.
 
@@ -100,6 +100,8 @@ And the file for <Uniref_mappings_path>:
 
 Luca: /srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt
 Eury: /Volumes/Biodata/ANN_mappings/ANN_mappings.txt
+
+On Luca you no longer need to specify these two file locations as they are automatically used by default
 
 The pipeline will output a file called “mannotatored.gff3”
 
