@@ -71,8 +71,8 @@ Step 4. Copy the Prodigal and RAST gff3 files and the multiple fasta file contai
 
 Step 5. Unleash the mannotator!
 
-The pipeline consists of one data file, two perl scripts which do the work and one “outer” script which ties them together. Here is a quick rundown what is being done by the mannotator and how to run it. Read below to learn about what the scripts are doing.
-
+Here is a quick rundown what is being done by the mannotator and how to run it.
+   
    1.
       Combine multiple gff3 files into one and extract fasta sequences of un-annotated ORFs
    2.
@@ -84,9 +84,16 @@ The pipeline consists of one data file, two perl scripts which do the work and o
 
 Running the Mannotator will take a while, so perhaps you should use nohup or screen. The order of the GFF files is IMPORTANT. You should put the RAST file first, followed by the prodigal file.
 
-$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa -p <uniref_path> -i <Uniref_mappings_path> -d
+The most basic command to get the mannotator running is:
 
-$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa -p <nr_path> -i <Nr_mappings_path> -d
+$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa
+
+which (on the Luca server) load the correct balst database and annotation mapping file.
+However specifying a custom location for both of these files is also possible:
+
+$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa -p <uniref_path> -i <Uniref_mappings_path>
+
+$ mannotator -g rast.gff3,prodigal.gff3 -c contigs.fa -p <nr_path> -i <Nr_mappings_path>
 
 If you ran your data against both Uniref (for function assignment) and Nr (for taxonomy assignment), you might want to recombine your GFF output files into a single file using the combineGffAnnotations.pl script.
 
@@ -111,20 +118,17 @@ FIN
 More info on the scripts themselves
 ------------------------------------------------
 
-The first is called combineGffOrfs.pl. It will take any number of gff3 files and merge their ORFs into one combined file. Also, it is currently programmed to extract the fasta sequences for ORFs which have not been given a RAST/FIG annotation. This script will run as a stand alone application. The order of the gff3 files is IMPORTANT. You need to supply them in the order in which you trust them.
+The mannotator can also be run as individual scripts...
+
+The first is called combineGffOrfs. It will take any number of gff3 files and merge their ORFs into one combined file. Also, it is currently programmed to extract the fasta sequences for ORFs which have not been given a RAST/FIG annotation. This script will run as a stand alone application. The order of the gff3 files is IMPORTANT. You need to supply them in the order in which you trust them.
 
 $ combineGffOrfs -gffs|g gff_file1[,gff_file2[, ... ]] -contigs|c contigs_file
 
-The second script is called blast2Ann.pl. It will take a Uniref90 blastx result and add KEGG and COG/NOG annotations to your contigs. Again, it can be run as a standalone.
+The second script is called blast2Ann. It will take a Uniref90 blastx result and add KEGG and COG/NOG annotations to your contigs. Again, it can be run as a standalone.
 
 $ blast2ann -u2a|u ANN_file -gff3|g gff3_file
 
-The ANN_file is a special text file which links Uniref90 IDs to KEGG and COG/NOG IDs. You can find a version of this file on Eury at:
-
-/Volumes/Biodata/ANN_mappings/ANN_mappings.txt
-
-You can update this file with newer annotations by running the script idMergeUniref.pl, also found in the mannotator directory on Eury.
-
+The ANN_file is a special text file which links Uniref90 IDs to KEGG and COG/NOG IDs.
 The format of the ANN_mappings file is as follows:
 
 UniProtID^[;Ontology_term=COG_ID:COG-NOGID[;Ontology_term=COG_DESC:COG-NOG text description]][;Ontology_term=KEGG_ID:KEGG entryID[;Ontology_term=KEG_PATHWAY:KEGG pathway ID][;Ontology_term=KEGG_ONTOLOGY:KEGG ko ID]]
@@ -139,4 +143,79 @@ Q21RE3^;Ontology_term=COG_ID:COG1881;Ontology_term=COG_DESC:Phospholipid-binding
 
 Use this file however you please…
 
+------------------------------------------------
+Usage and command-line options
+------------------------------------------------
+
+
+Usage:
+           mannotator -g[ffs] | --gffs <gff>... -c[ontigs] | --contigs <contig> [options]
+           mannotator --help
+           mannotator --version
+
+Required arguments:
+    -g[ffs] <gff>... | --gffs <gff>...
+        A comma or space separated list of gff3 formatted files
+
+    -c[ontigs] <contig> | --contigs <contig>
+        A fasta formated file containing contigs
+
+Options:
+    -p[rotdb] <protdb> | --protein-database <protdb>
+        Specify a custom location for a blast database of sequences Default:
+        /srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta
+
+    -i[2a] <mapping> | --i2a <mapping>
+        Specify a custom location for the database accession number mapping
+        file Default:
+        /srv/whitlam/bio/db/mannotator/Uniref201106_mappings.txt
+
+    -m[in_len] <minlen> | --minimum-length <minlen>
+        Remove ORFs less than this length (in bp). Default: 100 bp
+
+    -d | --seq-embed
+        Embed sequences into GFF files (useful to view the annotation in
+        Artemis)
+
+    -f[latfile] | --flat-file
+         Optionally create multiple genbank files for your contigs
+
+    -b[last_prg] <blastprog> | --blast-program <blastprog>
+        The type of blast to run. Default: blastx
+
+    -e[value] <evalue> | --evalue <evalue>
+        E-value cutoff when running blast. Default: 1e-08
+
+    -t[hreads] <threads> | --threads <threads>
+        Run blast on multiple threads. Default: 1
+
+    -o[ut] <outfile> | --outfile <outfile>
+        Filename for the final gff3 file. Default: mannotatored.gff3
+
+    -k[eep] | --keep-tmp
+        Keep all tmp files and directories created
+
+    -x | --keep-blast
+        Keep only the blast results and delete all other tmp files
+
+    -s[ims] | --blast-sims
+        Use a precomputed blast output file
+
+    -n[ew_blast] | --blast+
+        Use the blast+ toolkit, default is to use blastall
+
+    -one | --one
+        Skip step one of the mannotator
+
+    -two | --two
+        Skip step two of the mannotator
+
+    -three | --three
+        skip step three of the mannotator
+
+    -four | --four
+        Skip step four of the mannotator
+
+    -five | --five
+        Skip step five of the mannotator
 
