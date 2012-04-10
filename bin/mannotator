@@ -128,7 +128,7 @@ sub singleFileWorkflow {
     print "Step 5: Annotating using the BLAST results\n";
     &loadU2A($mapping_file, $annotations_hash_ref);
 
-    my @blast_files = (${$tmp_fasta_prefix_ref}.$blast_program);
+    my @blast_files = (${$tmp_fasta_prefix_ref}.".".$blast_program);
 
     &generateAnnotations(\@blast_files, $u2a_hash_ref, $evalue, $max_results_cutoff, $annotations_hash_ref );
 
