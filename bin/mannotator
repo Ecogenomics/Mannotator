@@ -310,7 +310,7 @@ Remove ORFs less than this length (in bp). Default: minlen.default bp
     minlen.type: +integer
     minlen.type.error: <minlen> must be a positive integer
 
-=item -[seq_embe]d | --seq-embed
+=item -d | --seq-embed
 
 Embed sequences into GFF files (useful to view the annotation in Artemis)
 
