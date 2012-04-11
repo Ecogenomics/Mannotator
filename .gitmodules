@@ -1,0 +1,6 @@
+[submodule "vis/keggVIZ"]
+	path = vis/keggVIZ
+	url = git://github.com/ctSkennerton/keggVIZ.git
+[submodule "vis/krona"]
+	path = vis/krona
+	url = git://git.code.sf.net/p/krona/git
