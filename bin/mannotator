@@ -286,11 +286,11 @@ A fasta formated file containing contigs
 
 =item -p[rotdb] <protdb> | --protein-database <protdb>
 
-Specify a custom location for a blast database of sequences Default: protdb.default
+Specify a custom location for a blast database (not a FASTA file) of sequences Default: protdb.default
 
 =for Euclid:
     protdb.default: '/srv/whitlam/bio/db/uniprot/uniref90/uniref90.fasta'
-    protdb.type: readable
+    protdb.type: string
 
 =item -i[2a] <mapping> | --i2a <mapping>
 
