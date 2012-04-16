@@ -228,7 +228,7 @@ __DATA__
 
 =head1 VERSION
 
-    0.1
+    0.1.1
 
 =head1 COPYRIGHT
 
@@ -320,14 +320,14 @@ Embed sequences into GFF files (useful to view the annotation in Artemis)
 
 =item -b[last_prg] <blastprog> | --blast-program <blastprog>
 
-The type of blast to run
+The type of blast to run. Default: blastprog.default
 
 =for Euclid:
     blastprog.default: 'blastx'
 
 =item -e[value] <evalue> | --evalue <evalue>
 
-E-value cutoff when running blast
+E-value cutoff when running blast. Default: evalue.default
 
 =for Euclid:
     evalue.default: 1e-8
@@ -336,7 +336,7 @@ E-value cutoff when running blast
 
 =item -t[hreads] <threads> | --threads <threads>
 
-Run blast on multiple threads
+Run blast on multiple threads. Default: threads.default
 
 =for Euclid:
     threads.default: 1
@@ -345,7 +345,7 @@ Run blast on multiple threads
 
 =item -o[ut] <outfile> | --outfile <outfile>
 
-Filename for the final gff3 file
+Filename for the final gff3 file. Default: outfile.default
 
 =for Euclid:
     outfile.default: 'mannotatored.gff3'
