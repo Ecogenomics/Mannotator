@@ -75,7 +75,7 @@ if (scalar @{$ARGV{'-g'}} == 1) {
         #definately single file
         &singleFileWorkflow($ARGV{'-g'}->[0], $ARGV{'-c'}, \$global_tmp_fasta, \$global_tmp_prefix, $ARGV{'-s'}, 
                             $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $use_new_blast, $ARGV{'-i'}, \%global_annotations_hash,
-                            \%global_U2A_hash, $ARGV{'-e'}, $global_results_max_cut_off, $ARGV{'-o'}, \$global_tmp_fasta_prefix, $ARGV{'-k'} );
+                            \%global_U2A_hash, $ARGV{'-e'}, $global_results_max_cut_off, $ARGV{'-o'}, \$global_tmp_fasta_prefix, $ARGV{'-k'}, $ARGV{'-d'} );
     } else {
         # got some commas, multifile
         &multiFileWorkflow($ARGV{'-g'}->[0], \%global_tmp_folders, \$global_tmp_prefix, $ARGV{'-c'}, $ARGV{'-m'}, \$global_tmp_fasta, $ARGV{'-s'}, 
@@ -116,7 +116,7 @@ sub singleFileWorkflow {
 
     my ($gff_files, $contig_files, $tmp_fasta_ref, $tmp_prefix_ref, $sims_file, 
         $threads, $blast_program, $blastdb, $new_blast, $mapping_file, $annotations_hash_ref,
-        $u2a_hash_ref, $evalue, $max_results_cutoff, $output_file, $tmp_fasta_prefix_ref, $keep_tmps) = @_;
+        $u2a_hash_ref, $evalue, $max_results_cutoff, $output_file, $tmp_fasta_prefix_ref, $keep_tmps, $seq_embed) = @_;
 
     print "Step 1: creating ORFs from the gff file\n";
     &gff2fasta($gff_files, $contig_files, $tmp_fasta_ref, ${$tmp_prefix_ref}.".gff");
@@ -151,7 +151,12 @@ sub singleFileWorkflow {
     &generateAnnotations(\@blast_files, $u2a_hash_ref, $evalue, $max_results_cutoff, $annotations_hash_ref );
 
     &recombineGff3(${$tmp_prefix_ref}.".gff", $output_file, $annotations_hash_ref);
-
+    
+    if($seq_embed) {
+        open my $out_fh, '>>', $output_file or die $!;
+        &embedFastaIntoGff($out_fh, $contig_files);
+        close $out_fh;
+    }
     # delete our tmp files
     # only need to delete the tmp gff ourselves then call cleanTemps
     unless ($keep_tmps) {
