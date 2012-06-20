@@ -1,0 +1,517 @@
+#! /usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Euclid qw( :minimal_keys );
+use Bio::SeqIO;
+use Bio::FeatureIO;
+use Bio::Graphics;
+use List::Util qw(max);
+
+
+=head1 NAME
+
+plot_annotation - Create a plot of a genome annotation
+
+=head1 AUTHOR
+
+Florent Angly <florent.angly@gmail.com>
+
+=head1 VERSION
+
+0.03
+
+=head1 DESCRIPTION
+
+Draw a plot of an annotated sequence given a GFF file containing the location,
+annotation and taxonomy of ORFS on the sequences.
+
+Caveat: All sequences and annotations are stored in memory. Thus, if you have
+many entries, you may want to split you files into smaller ones.
+
+=head1 SYNOPSIS
+
+=head1 REQUIRED ARGUMENTS
+
+=over
+
+=item -gf <gff_file> | -gff_file <gff_file>
+
+GFF file containing the annotation. If the sequences are not included in this
+file, use the  <fasta_file> option.
+
+=for Euclid:
+   gff_file.type: readable
+
+=back
+
+=head1 OPTIONAL ARGUMENTS
+
+=item -ff <fasta_file> | -fasta_file <fasta_file>
+
+FASTA file containing the nucleic sequences (contigs, genomes) for which the
+annotations apply.
+
+=for Euclid:
+   fasta_file.type: readable
+
+=item -sg <single_graph> | -single_graph <single_graph>
+
+If there are multiple annotated sequences, draw them all on a single graph (1),
+or one per graph (0). Default: single_graph.default
+
+=for Euclid:
+   single_graph.type: integer, single_graph == 0 || single_graph == 1
+   single_graph.type.error: <single_graph> must be 0 or 1 (not single_graph)
+   single_graph.default: 0
+
+=item -op <output_prefix> | -output_prefix <output_prefix>
+
+Specify a prefix for the output files. Default: output_prefix.default
+
+=for Euclid:
+   output_prefix.type: string
+   output_prefix.default: "plot"
+
+=item -of <output_format> | -output_format <output_format>
+
+Specify the type of images to generate, e.g. svg, png, jpeg... Default: output_format.default
+
+=for Euclid:
+   output_format.type: string, output_format eq 'svg' || output_format eq 'jpeg' || output_format eq 'png'
+   output_format.type.error: <output_format> must be svg, png or jpeg (not output_format)
+   output_format.default: 'svg'
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2011-2012 Florent Angly under the GPLv3 license.
+
+=cut
+
+
+main();
+exit;
+
+
+sub main {
+
+   # Read the GFF features, store them keyed by seq_id
+   my $all_feats;
+   my $fcount = 0;
+   my $gffin = Bio::FeatureIO->new(
+      -file   => $ARGV{gff_file},
+      -format => 'gff',
+   );
+   while (my $feat = $gffin->next_feature()){
+      push @{$all_feats->{$feat->seq_id}}, $feat;
+      $fcount++;
+   }
+   print "Got $fcount features\n";
+
+   # Read the sequences from GFF, store them keyed by ID
+   my $seqs;
+   if (defined $gffin->seqio) {
+      $seqs = read_fasta_io( $gffin->seqio, $seqs );
+   }
+   $gffin->close;
+
+   # Read the optional FASTA file
+   if (exists $ARGV{fasta_file}) {
+      $seqs = read_fasta_file($ARGV{fasta_file});
+   }
+   my $nof_seqs = scalar keys %$seqs;
+   print "Got $nof_seqs sequences\n";
+
+   # Sanity check
+   if (    (scalar keys %$seqs == 0)
+        && (not exists $ARGV{fasta_file}) ) {
+      die "Error: Could not find any sequences to plot in the GFF file. You ".
+          "should probably specify <fasta_file>\n";
+   }
+
+   # Attach a sequences to every feature
+   while (my ($seq_id, $seq_feats) = each %$all_feats) {
+      my $seq = $seqs->{$seq_id};
+      if (not defined $seq) {
+         die "Error: sequence $seq_id seems to be missing\n";
+      }
+      for my $feat (@$seq_feats) {
+         # Attach the sequence
+         $feat->attach_seq($seq);
+      }
+   }
+   undef $seqs;
+
+   # Draw graphs
+   draw_all_annotations( $all_feats, $ARGV{single_graph}, $ARGV{output_prefix},
+      $ARGV{output_format} );
+
+   print "Done!\n";
+   return 1;
+}
+
+
+sub draw_all_annotations {
+   # 
+   my ($all_feats, $single_graph, $output_prefix, $output_format) = @_;
+   if ($single_graph) {
+
+      # Draw all sequences in one image
+      my $max_seq_length = max map {$$_[0]->entire_seq->length} (values %$all_feats);
+      my $panel;
+      $panel = draw_panel($max_seq_length);
+      $panel = draw_ruler($panel, $max_seq_length);
+      while ( my ($seq_id, $seq_feats) = each %$all_feats ) {
+         $panel = draw_seq_annotation($panel, $seq_feats);
+      }
+      $panel = draw_legend($panel);
+      write_image($panel, $output_prefix.'.'.$output_format, $output_format);
+
+   } else {
+
+      # Draw all sequences in separate images
+      while ( my ($seq_id, $seq_feats) = each %$all_feats ) {
+         my $seq        = $$seq_feats[0]->entire_seq;
+         my $seq_id     = $seq->id;
+         my $seq_length = $seq->length;
+         my $panel;
+         $panel = draw_panel($seq_length, $output_format);
+         $panel = draw_ruler($panel, $seq_length);
+         $panel = draw_seq_annotation($panel, $seq_feats);
+         $panel = draw_legend($panel);
+         write_image($panel, $output_prefix.'_'.$seq_id.'.'.$output_format, $output_format);
+      }
+
+   }
+   return 1;
+}
+
+
+sub draw_panel {
+   my ($panel_length, $output_format) = @_;
+   my $pad_vert = 10;
+   my $pad_horz = 20;
+   my $image_class = 'GD';
+   if ($output_format eq 'svg') {
+      $image_class .= '::'.uc($output_format); # GD::SVG
+   }
+   my $panel = Bio::Graphics::Panel->new(
+      -length      => $panel_length + 1 , # sequence length in bp
+      -width       => $panel_length / 10, # image width in pixels
+      -pad_top     => $pad_vert,
+      -pad_bottom  => $pad_vert,
+      -pad_left    => $pad_horz,
+      -pad_right   => $pad_horz * 2, # to accomodate for longer labels
+      -image_class => $image_class,
+   );
+   return $panel;
+}
+
+
+sub draw_ruler {
+   # Draw a ruler at the top
+   my ($panel, $ruler_length) = @_;
+   my $ruler = Bio::SeqFeature::Generic->new(
+      -start => 1,
+      -end   => $ruler_length,
+   );
+   $panel->add_track( $ruler,
+      -glyph      => 'arrow',
+      -tick       => 1,
+      -fgcolor    => 'black',
+      -label      => 1,
+   );
+   return $panel;
+}
+
+
+sub draw_seq_annotation {
+   my ($panel, $seq_feats) = @_;
+
+   my $seq       = $$seq_feats[0]->entire_seq;
+   my $seqlength = $seq->length;
+   my $seqid     = $seq->id;
+   print "Drawing annotations for sequence $seqid ($seqlength bp)\n";
+
+   # Draw the sequence
+   my $sequence = Bio::SeqFeature::Generic->new(
+      -display_name => "$seqid ($seqlength bp)",
+      -start        => 1,
+      -end          => $seqlength,
+   );
+   $panel->add_track( $sequence,
+      -glyph       => 'generic',
+      -tick        => 1,
+      -fgcolor     => 'black',
+      -label       => 1,
+      -description => 0,
+   );
+
+   # Add annotations
+   my $track = $panel->add_track(
+      $seq_feats,
+      -glyph        => 'transcript2',
+      -fgcolor      => 'black',
+      -label        => sub { get_function_label(get_orf_function(shift)) },
+      -linewidth    => sub { get_function_linewidth(get_function_type(get_orf_function(shift))) },
+      -bgcolor      => sub { get_taxonomy_group_color( get_orf_taxonomy_group(shift) ) },
+      -bump         => 1,  # 0 means: put everything on the same line
+   );
+  
+   return $panel;
+}
+
+
+sub draw_legend {
+   my ($panel) = @_;
+
+   my $length = 700;
+   my $space  = 350;
+
+   # Taxonomy
+   my @groups = ('Unknown taxon', 'Myophages', 'Podophages', 'Siphophages',
+      'Other phages', 'Other viruses', 'Bacteria', 'Eukaryota', 'Archaea',
+      'Other' );
+   my @taxo_feats;
+   my $position = 1;
+   for my $group (@groups) {
+      my $taxo_feat = Bio::SeqFeature::Generic->new(
+         -display_name => $group,
+         -start        => $position,
+         -end          => $position + $length,
+      );
+      $position += $length + $space;
+      push @taxo_feats, $taxo_feat;
+   }
+   my $taxo_legend = $panel->add_track(
+         \@taxo_feats,
+         -glyph        => 'generic',
+         -label        => 1,
+         -description  => 1,
+         -bgcolor      => sub { get_taxonomy_group_color( shift->display_name ) },
+   );
+
+   # Function
+   my @function_feats;
+   my $function_feat;
+   $position = 1;
+
+   $function_feat = Bio::SeqFeature::Generic->new(
+      -display_name => 'Unknown function',
+      -start        => $position,
+      -end          => $position + $length,
+   );
+   $position += $length + $space;
+   push @function_feats, $function_feat;
+
+   $function_feat = Bio::SeqFeature::Generic->new(
+      -display_name => 'Assigned (incl. hypothetical)',
+      -start        => $position,
+      -end          => $position + $length,
+   );
+   $position += $length + $space;
+   push @function_feats, $function_feat;
+
+   my $function_legend = $panel->add_track(
+         \@function_feats,
+         -glyph        => 'generic',
+         -label        => 1,
+         -description  => 1,
+         -linewidth    => sub { get_function_linewidth( shift->display_name ) },
+         -bgcolor      => 'white',
+   );
+
+   return $panel;
+}
+
+
+sub get_orf_function {
+   # The GFF contains an entry like this stored under the tag 'Name':
+   #    Name=FIG146085: 3'-to-5' oligoribonuclease A2C Bacillus type
+   # We use this for the name of the ORF:
+   my ($feat) = @_;
+   my $function = ($feat->get_tag_values("Name"))[0] || ' ';
+   return $function;
+}
+
+
+sub get_orf_full_taxonomy {
+   # The GFF contains an full-taxonomy stored under the tag 'Note'
+   # In this instance, this is the NCBI taxonomy that we are assuming
+   my ($feat) = @_;
+   my $taxonomy = ($feat->get_tag_values("Note"))[0] || ' ';
+   return $taxonomy;
+}
+
+
+sub get_orf_species {
+   # The GFF contains an entry like this that we pull the species name from:
+   #    Note=cellular organisms/Bacteria/Firmicutes/Clostridia/Clostridiales/Eubacteriaceae/Eubacterium/Eubacterium hallii/Eubacterium hallii DSM 3353
+   # Here, the species name is Eubacterium hallii DSM 3353
+   my ($feat) = @_;
+   my $species = (split('/', get_orf_full_taxonomy($feat)))[-1];
+   return $species;
+}
+
+
+sub get_orf_taxonomy_group {
+   # The GFF contains entries like these:
+   #    Note=cellular organisms/Bacteria/Firmicutes/Clostridia/Clostridiales/Eubacteriaceae/Eubacterium/Eubacterium hallii/Eubacterium hallii DSM 3353
+   #    Note=Viruses/dsDNA viruses%2C no RNA stage/Caudovirales/Myoviridae/unclassified Myoviridae/Halomonas phage phiHAP-1
+   # For cellular organisms, report the domain, i.e. Bacteria, Archaea or Eukarya
+   # For viruses, report the family, i.e. Myoviridae, Podoviridae, etc 
+   my ($feat) = @_;
+   my $group;
+   my $full_taxo = get_orf_full_taxonomy($feat);
+   if ($full_taxo =~ m/^\s*$/) {
+      $group = 'unknown';
+   } else {
+      my $type = (split('/', $full_taxo))[0]; # cellular* or viral-related
+      if ($type =~ /viruses/i) {
+         my $family = (split('/', $full_taxo))[3]; # myoviridae, podoviridae, ...
+         if ( defined $family && $family =~ m/(myo|podo|sipho)(phages|viridae)/i ) {
+            $family =~ s/viridae/phages/i;
+            $group = $family;
+         } elsif ( $full_taxo =~ m/phage/i) {
+            $group = 'other phages';
+         } else {
+            $group = 'other viruses';
+         }
+      } else {
+         my $domain = (split('/', $full_taxo))[1]; # bacteria, archaea, eukaryota
+         $group = $domain;
+      }
+      if ($group =~ m/^\s*$/) {
+         warn "Warning: Assigned unknown taxonomy to 'other': '$full_taxo'\n";
+         $group = 'other';
+      }
+   }
+   return $group;
+}
+
+
+sub get_taxonomy_group_color {
+   my ($group) = @_;
+   my $color;
+   if ( $group =~ /myo(viridae|phages)/i ) {
+      $color = '204,252,153'; # very light green
+   } elsif ( $group =~ /podo(viridae|phages)/i ) {
+      $color = '152,252,102'; # light green
+   } elsif ( $group =~ /sipho(viridae|phages)/i ) {
+      $color = '51,153,0'; # green
+   } elsif ( $group =~ /other phages/i ) {
+      $color = '1,90,1'; # dark green
+   } elsif ( $group =~ /other virus/i ) {
+      $color = '0,43,61'; # very dark green
+   } elsif ( $group =~ /bacteria/i ) {
+      $color = '212,0,0'; # red
+   } elsif ( $group =~ /archaea/i ) {
+      $color = '255,255,0'; # yellow
+   } elsif ( $group =~ /eukaryota/i ) {
+      $color = '1,151,253'; # blue
+   } elsif ( $group =~ /other/i ) {
+      $color = '170,170,170'; # grey
+   } elsif ( $group =~ /unknown/i ) {
+      $color = '255,255,255'; # white 
+   } else {
+      die "Error: Cannot assign a color to the unknown taxonomy group '$group'\n";
+   }
+   $color = 'rgb('.$color.')';
+   return $color;
+}
+
+
+sub get_function_type {
+   my ($function_name) = @_;
+   my $function_type;
+   if (defined $function_name && $function_name !~ m/^\s*$/) {
+      $function_type = 'assigned';
+   } else {
+      $function_type = 'unknown';
+   }
+   return $function_type;
+}
+
+
+sub get_function_linewidth {
+   my ($function_type) = @_;
+   my $linewidth;
+   if ($function_type =~ /assigned/i) {
+      $linewidth = 2;
+   } elsif ($function_type =~ /unknown/i) { 
+      $linewidth = 1;
+   } else {
+      die "Error: Cannot assign a color to unknown function type '$function_type'\n";
+   }
+   return $linewidth;
+}
+
+
+sub get_function_label {
+   my ($function) = @_;
+   my $label;
+
+   # lowercase, but only if everything is uppercase
+   #if ($function =~ m/^\U.*\E$/) {
+   #   $function = lc($function);
+   #}
+
+   if ($function eq 'hypothetical protein') {
+      $label = '';
+   } else {
+      $label = $function;
+   }
+   $label =~ s/^hypothetical protein$//g;
+   $label =~ s/hypothetical/hyp./g;
+   $label =~ s/\bprotein\b/p./g; # matches 'protein X' but not 'protein2C'
+   return $label;
+}
+
+
+sub write_image {
+   # Render and write image to a file
+   my ($panel, $filename, $format) = @_;
+   my $img = $panel->gd->$format; # need the ->gd() step for jpeg support
+   $panel->finished;
+   write_file($filename, $img);
+   return 1;
+}
+
+
+sub write_file {
+  # Write specified string to the specified file
+  my ($file, $content) = @_;
+  open my $fh, '>', $file or die "Error: Could not write file $file\n$!\n";
+  print $fh $content;
+  close $fh;
+  return 1;
+}
+
+
+sub read_fasta_file {
+   # Read a FASTA file and put the sequences and IDs into a hash that can be
+   # specfied.
+   my ($fasta_file, $seqs) = @_;
+   my $fastaio = Bio::SeqIO->new(
+      -file   => $fasta_file,
+      -format => 'fasta',
+   );
+   $seqs = read_fasta_io($fastaio, $seqs);
+   $fastaio->close;
+   return $seqs;
+}
+
+
+sub read_fasta_io {
+   # Read from a Bioperl FASTA IO and put the sequences and IDs into a hash that
+   # can be specfied.
+   my ($fastaio, $seqs) = @_;
+   while (my $seq = $fastaio->next_seq) {
+      my $seqid = $seq->id;
+      if (exists $seqs->{$seqid}) {
+         warn "Warning: Sequence $seqid seen multiple times\n";
+      }
+      $seqs->{$seqid} = $seq;
+   }
+   return $seqs;
+}
