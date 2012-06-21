@@ -26,6 +26,10 @@ Florent Angly <florent.angly@gmail.com>
 Draw a plot of an annotated sequence given a GFF file containing the location,
 annotation and taxonomy of ORFS on the sequences.
 
+The function of an ORF is extracted from the following tags in a GFF entry (in
+this order of preference, case-insensitive): 'Name', or 'Product', or
+'Note:COG_DESC'.
+
 Caveat: All sequences and annotations are stored in memory. Thus, if you have
 many entries, you may want to split you files into smaller ones.
 
@@ -327,11 +331,43 @@ sub draw_legend {
 
 
 sub get_orf_function {
-   # The GFF contains an entry like this stored under the tag 'Name':
+   # The GFF contains an entry like this stored under the tag 'Name', 'Product'
+   # or 'Note:COG_DESC' (in this order, case-insensitive):
    #    Name=FIG146085: 3'-to-5' oligoribonuclease A2C Bacillus type
+   #    product= glucosamine--fructose-6-phosphate aminotransferase (isomerizing)
+   #    note=COG_DESC:Glucosamine 6-phosphate synthetase%2C contains amidotransferase and phosphosugar isomerase domains;
    # We use this for the name of the ORF:
    my ($feat) = @_;
-   my $function = ($feat->get_tag_values("Name"))[0] || ' ';
+   my $function;
+
+   if (not $function) {
+      $function = ($feat->get_tag_values('Name'))[0];
+   }
+
+   if (not $function) {
+      $function = ($feat->get_tag_values('name'))[0];
+   }
+
+   if (not $function) {
+      $function = ($feat->get_tag_values('Product'))[0];
+   }
+
+   if (not $function) {
+      $function = ($feat->get_tag_values('product'))[0];
+   }
+
+   if (not $function) {
+      my $note = ($feat->get_tag_values('Note'))[0] || ' ';
+      ($function) = ($note =~ m/^COG_DESC:(.*)$/i);
+   }
+
+   if (not $function) {
+      my $note = ($feat->get_tag_values('note'))[0] || ' ';
+      ($function) = ($note =~ m/^COG_DESC:(.*)$/i);
+   }
+
+   $function ||= '';
+
    return $function;
 }
 
