@@ -69,6 +69,16 @@ or one per graph (0). Default: single_graph.default
    single_graph.type.error: <single_graph> must be 0 or 1 (not single_graph)
    single_graph.default: 0
 
+=item -sd <species_desc> | -species_desc <species_desc>
+
+ORFs are labelled with the name of the function they encode. This option is to
+add the species name to the label. Default: species_desc.default
+
+=for Euclid:
+   species_desc.type: integer, species_desc == 0 || species_desc == 1
+   species_desc.type.error: <species_desc> must be 0 or 1 (not species_desc)
+   species_desc.default: 0
+
 =item -op <output_prefix> | -output_prefix <output_prefix>
 
 Specify a prefix for the output files. Default: output_prefix.default
@@ -147,8 +157,8 @@ sub main {
    undef $seqs;
 
    # Draw graphs
-   draw_all_annotations( $all_feats, $ARGV{single_graph}, $ARGV{output_prefix},
-      $ARGV{output_format} );
+   draw_all_annotations( $all_feats, $ARGV{single_graph}, $ARGV{species_desc},
+      $ARGV{output_prefix}, $ARGV{output_format} );
 
    print "Done!\n";
    return 1;
@@ -157,7 +167,7 @@ sub main {
 
 sub draw_all_annotations {
    # 
-   my ($all_feats, $single_graph, $output_prefix, $output_format) = @_;
+   my ($all_feats, $single_graph, $species_desc, $output_prefix, $output_format) = @_;
    if ($single_graph) {
 
       # Draw all sequences in one image
@@ -166,7 +176,7 @@ sub draw_all_annotations {
       $panel = draw_panel($max_seq_length);
       $panel = draw_ruler($panel, $max_seq_length);
       while ( my ($seq_id, $seq_feats) = each %$all_feats ) {
-         $panel = draw_seq_annotation($panel, $seq_feats);
+         $panel = draw_seq_annotation($panel, $seq_feats, $species_desc);
       }
       $panel = draw_legend($panel);
       write_image($panel, $output_prefix.'.'.$output_format, $output_format);
@@ -181,7 +191,7 @@ sub draw_all_annotations {
          my $panel;
          $panel = draw_panel($seq_length, $output_format);
          $panel = draw_ruler($panel, $seq_length);
-         $panel = draw_seq_annotation($panel, $seq_feats);
+         $panel = draw_seq_annotation($panel, $seq_feats, $species_desc);
          $panel = draw_legend($panel);
          write_image($panel, $output_prefix.'_'.$seq_id.'.'.$output_format, $output_format);
       }
@@ -230,7 +240,7 @@ sub draw_ruler {
 
 
 sub draw_seq_annotation {
-   my ($panel, $seq_feats) = @_;
+   my ($panel, $seq_feats, $species_desc) = @_;
 
    my $seq       = $$seq_feats[0]->entire_seq;
    my $seqlength = $seq->length;
@@ -257,13 +267,46 @@ sub draw_seq_annotation {
       $seq_feats,
       -glyph        => 'transcript2',
       -fgcolor      => 'black',
-      -label        => sub { get_function_label(get_orf_function(shift)) },
-      -linewidth    => sub { get_function_linewidth(get_function_type(get_orf_function(shift))) },
-      -bgcolor      => sub { get_taxonomy_group_color( get_orf_taxonomy_group(shift) ) },
+      -label        => sub { get_label(shift) },
+      -description  => sub { get_description(shift, $species_desc) },
+      -linewidth    => sub { get_linewidth(shift) },
+      -bgcolor      => sub { get_bgcolor(shift) },
       -bump         => 1,  # 0 means: put everything on the same line
    );
   
    return $panel;
+}
+
+
+sub get_label {
+   # Label is the function of the ORF.
+   my ($feat) = @_;
+   return get_function_label(get_orf_function($feat));
+}
+
+
+sub get_description {
+   # ORF description is the name of the species it matches.
+   my ($feat, $species_desc) = @_;
+   my $desc = '';
+   if ($species_desc) {
+      $desc = get_orf_species_short($feat);
+   }
+   return $desc;
+}
+
+
+sub get_linewidth {
+   # Linewidth depends on whether the ORF has a functional match or not.
+   my ($feat) = @_;
+   return get_function_linewidth(get_function_type(get_orf_function($feat)));
+}
+
+
+sub get_bgcolor {
+   # Background color depends on the ORF taxonomy.
+   my ($feat) = @_;
+   return get_taxonomy_group_color( get_orf_taxonomy_group($feat) );
 }
 
 
@@ -402,6 +445,23 @@ sub get_orf_species {
    my ($feat) = @_;
    my $species = (split('/', get_orf_full_taxonomy($feat)))[-1];
    return $species;
+}
+
+
+sub get_orf_species_short {
+   # Return a short species name. For example, 'Selenomonas noxia ATCC 43541' is
+   # shortened to 'Selenomonas noxia'
+   my ($feat) = @_;
+   my $short = '';
+   my $species = get_orf_species($feat) || '';
+   if ($species) {
+      my @elems = split ' ', $species;
+      if (scalar @elems >= 2) {
+         @elems = @elems[0,1];
+      }
+      $short = join ' ', @elems;
+   }
+   return $short;
 }
 
 
