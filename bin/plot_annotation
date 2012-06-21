@@ -243,6 +243,7 @@ sub draw_seq_annotation {
       -glyph       => 'generic',
       -tick        => 1,
       -fgcolor     => 'black',
+      -bgcolor     => 'lightgrey',
       -label       => 1,
       -description => 0,
    );
