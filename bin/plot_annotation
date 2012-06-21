@@ -373,10 +373,24 @@ sub get_orf_function {
 
 
 sub get_orf_full_taxonomy {
-   # The GFF contains an full-taxonomy stored under the tag 'Note'
-   # In this instance, this is the NCBI taxonomy that we are assuming
+   # The GFF contains an slash(/)-separated full-taxonomy stored under the tag
+   # 'Note' (and 'note'). In this instance, this is the NCBI taxonomy that we
+   # are assuming
    my ($feat) = @_;
-   my $taxonomy = ($feat->get_tag_values("Note"))[0] || ' ';
+   my $taxonomy;
+   if (not $taxonomy) {
+      my $note = ($feat->get_tag_values("Note"))[0] || '';
+      if ($note =~ m#/#) {
+         $taxonomy = $note;
+      }
+   }
+   if (not $taxonomy) {
+      my $note = ($feat->get_tag_values("note"))[0] || '';
+      if ($note =~ m#/#) {
+         $taxonomy = $note;
+      }
+   }
+   $taxonomy ||= '';
    return $taxonomy;
 }
 
