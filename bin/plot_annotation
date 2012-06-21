@@ -366,7 +366,7 @@ sub get_orf_taxonomy_group {
    if ($full_taxo =~ m/^\s*$/) {
       $group = 'unknown';
    } else {
-      my $type = (split('/', $full_taxo))[0]; # cellular* or viral-related
+      my $type = (split('/', $full_taxo))[0]; # cellular* or viral-related or 'other sequences'
       if ($type =~ /viruses/i) {
          my $family = (split('/', $full_taxo))[3]; # myoviridae, podoviridae, ...
          if ( defined $family && $family =~ m/(myo|podo|sipho)(phages|viridae)/i ) {
@@ -377,8 +377,10 @@ sub get_orf_taxonomy_group {
          } else {
             $group = 'other viruses';
          }
+      } elsif ($type =~ /other/i) { # e.g. 'other sequences'
+         $group = 'other';
       } else {
-         my $domain = (split('/', $full_taxo))[1]; # bacteria, archaea, eukaryota
+         my $domain = (split('/', $full_taxo))[1]; # bacteria, archaea or eukaryota
          $group = $domain;
       }
       if ($group =~ m/^\s*$/) {
