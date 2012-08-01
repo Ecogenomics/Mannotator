@@ -137,7 +137,7 @@ while(<$KEGGE_fh>)
     my @data = split /\t/, $_;
     if(!exists $global_KEGG_k_hash{$data[0]})
     {
-        $global_KEGG_e_hash{$data[0]} = ";EC_number=".uri_escape($data[1], $esc);
+        $global_KEGG_e_hash{$data[0]} = ";ec_number=".uri_escape($data[1], $esc);
         if (defined $data[2])
         {
         $global_KEGG_e_hash{$data[0]} .= ";product=".uri_escape($data[2], $esc);

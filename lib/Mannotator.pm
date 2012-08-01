@@ -33,7 +33,7 @@ use Class::Struct;
 use Carp;
 
 our @EXPORT = qw(gff2fasta generateAnnotations loadU2A splitGffs splitFasta combineGffs blastUnknowns splitBlastResults 
-                cleanTmps annotate createFlatFile insertFeature debugFeature nextInList recombineGff3);
+                cleanTmps annotate createFlatFile insertFeature debugFeature nextInList recombineGff3 embedFastaIntoGff);
 our $VERSION = '0.1';
 
 sub prodigal_seqname {
@@ -584,18 +584,22 @@ sub annotate {
 
     # finally, embed the FASTA sequences in the GFF file
     if ($seq_embed) {
-        print $out_fh "##FASTA\n";
-        my $in  = Bio::SeqIO->new( -file => $contig_file  , -format => 'fasta' ); 
-        my $out = Bio::SeqIO->new( -fh   => $out_fh, -format => 'fasta' );
-        while (my $seq = $in->next_seq)
-        {
-            $out->write_seq($seq);
-        }
-        $in->close;
-        $out->close;
+        &embedFastaIntoGff($out_fh, $contig_file);
     }
-
     close $out_fh;
+}
+
+sub embedFastaIntoGff {
+    my ($out_fh, $contig_file) = @_;
+    print $out_fh "##FASTA\n";
+    my $in  = Bio::SeqIO->new( -file => $contig_file  , -format => 'fasta' ); 
+    my $out = Bio::SeqIO->new( -fh   => $out_fh, -format => 'fasta' );
+    while (my $seq = $in->next_seq)
+    {
+        $out->write_seq($seq);
+    }
+    $in->close;
+    $out->close;
 }
 
 
@@ -664,10 +668,16 @@ sub generateAnnotations() {
     foreach my $blast_file (@{$blast_files_ref}) 
     {
         # Load the result into memory
-        my $in = new Bio::SearchIO(
-            -format => 'blastTable',
-            -file => $blast_file
-        );
+        my $in;
+        eval {
+            $in = new Bio::SearchIO(
+                -format => 'blastTable',
+                -file => $blast_file
+            );
+            1;
+        } or do {
+            confess "Could not open blast file: $blast_file\n",$@;
+        };
 
         # get all the accessions with a significance less than $global_evalue_cutoff
         while( my $result = $in->next_result ) 
@@ -745,7 +755,13 @@ sub recombineGff3() {
     my ($gff3_in, $gff3_out, $ann_hash_ref ) = @_;
 
     # specify input via -fh or -file
-    my $gffio_in = Bio::Tools::GFF->new(-file => $gff3_in, -gff_version => 3);
+    my $gffio_in;
+    eval {
+        $gffio_in = Bio::Tools::GFF->new(-file => $gff3_in, -gff_version => 3);
+        1;
+    } or do {
+        confess "Could not open the input gff file\n", $@;
+    };
     open my $ann_fh, '>', $gff3_out or die "Error: Could not write file $gff3_out\n$!\n";
     print $ann_fh "##gff-version 3\n";
     

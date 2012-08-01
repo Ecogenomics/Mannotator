@@ -75,10 +75,9 @@ if (scalar @{$ARGV{'-g'}} == 1) {
         #definately single file
         &singleFileWorkflow($ARGV{'-g'}->[0], $ARGV{'-c'}, \$global_tmp_fasta, \$global_tmp_prefix, $ARGV{'-s'}, 
                             $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $use_new_blast, $ARGV{'-i'}, \%global_annotations_hash,
-                            \%global_U2A_hash, $ARGV{'-e'}, $global_results_max_cut_off, $ARGV{'-o'}, \$global_tmp_fasta_prefix );
+                            \%global_U2A_hash, $ARGV{'-e'}, $global_results_max_cut_off, $ARGV{'-o'}, \$global_tmp_fasta_prefix, $ARGV{'-k'}, $ARGV{'-d'} );
     } else {
         # got some commas, multifile
-        print "$ARGV{'-m'}\n";
         &multiFileWorkflow($ARGV{'-g'}->[0], \%global_tmp_folders, \$global_tmp_prefix, $ARGV{'-c'}, $ARGV{'-m'}, \$global_tmp_fasta, $ARGV{'-s'}, 
                        \$global_tmp_fasta_prefix, $ARGV{'-t'}, $ARGV{'-b'}, $ARGV{'-p'}, $ARGV{'-n'}, $ARGV{'-d'}, $ARGV{'-i'}, \%global_U2A_hash,
                        $ARGV{'-e'}, $global_results_max_cut_off, \%global_annotations_hash, $ARGV{'-o'}, $ARGV{'--one'}, $ARGV{'--two'}, 
@@ -117,7 +116,7 @@ sub singleFileWorkflow {
 
     my ($gff_files, $contig_files, $tmp_fasta_ref, $tmp_prefix_ref, $sims_file, 
         $threads, $blast_program, $blastdb, $new_blast, $mapping_file, $annotations_hash_ref,
-        $u2a_hash_ref, $evalue, $max_results_cutoff, $output_file, $tmp_fasta_prefix_ref) = @_;
+        $u2a_hash_ref, $evalue, $max_results_cutoff, $output_file, $tmp_fasta_prefix_ref, $keep_tmps, $seq_embed) = @_;
 
     print "Step 1: creating ORFs from the gff file\n";
     &gff2fasta($gff_files, $contig_files, $tmp_fasta_ref, ${$tmp_prefix_ref}.".gff");
@@ -126,17 +125,43 @@ sub singleFileWorkflow {
     &blastUnknowns($sims_file, $tmp_fasta_ref, $tmp_fasta_prefix_ref, $threads, $blast_program, \$blastdb, $new_blast);
 
     print "Step 5: Annotating using the BLAST results\n";
-    &loadU2A($mapping_file, $annotations_hash_ref);
+    my @blast_files = ();
+    my $working_dir = ".";
+    if (-d $working_dir) {
+        opendir(INDIR, $working_dir)
+            or die "Failed to read from directory $working_dir:$!\n";
+        @blast_files = grep /\.blast[nx]$/, readdir (INDIR);
+        closedir (INDIR);
+    }
+    else {
+        push (@blast_files, $working_dir);
+    }
 
-    my @blast_files = (${$tmp_fasta_prefix_ref}.".".$blast_program);
+    if($#blast_files == -1)
+    {
+        print "ERROR: no blast files found in working directory: [$working_dir]\n";
+        exit;
+    }
+    print "parsing ".@blast_files." blast results\n";
+    
+    &loadU2A($mapping_file, $u2a_hash_ref);
+
+    #my @blast_files = (${$tmp_fasta_prefix_ref}.".".$blast_program);
 
     &generateAnnotations(\@blast_files, $u2a_hash_ref, $evalue, $max_results_cutoff, $annotations_hash_ref );
 
     &recombineGff3(${$tmp_prefix_ref}.".gff", $output_file, $annotations_hash_ref);
-
+    
+    if($seq_embed) {
+        open my $out_fh, '>>', $output_file or die $!;
+        &embedFastaIntoGff($out_fh, $contig_files);
+        close $out_fh;
+    }
     # delete our tmp files
     # only need to delete the tmp gff ourselves then call cleanTemps
-    unlink ${$tmp_prefix_ref}.".gff" or die "ERROR: could not delete file ${$tmp_prefix_ref}.gff\n$1\n";
+    unless ($keep_tmps) {
+        unlink ${$tmp_prefix_ref}.".gff" or die "ERROR: could not delete file ${$tmp_prefix_ref}.gff\n$1\n";
+    }
 
 }
 
@@ -146,7 +171,6 @@ sub multiFileWorkflow {
         $sims_file, $tmp_fasta_prefix_ref, $threads, $blast_program, $blastdb, $new_blast,
         $seq_embed,$mapping_file, $u2a_hash_ref,$evalue, $results_cutoff, $ann_hash_ref, $output_file,
         $one, $two, $three, $four, $five ) = @_;
-    print "$min_len\n";
     #
     # Step 1. Split down the GFF3 and FASTA files into multiple folders
     #
@@ -228,7 +252,7 @@ __DATA__
 
 =head1 VERSION
 
-    0.1
+    0.1.1
 
 =head1 COPYRIGHT
 
@@ -307,7 +331,7 @@ Remove ORFs less than this length (in bp). Default: minlen.default bp
 
 =for Euclid:
     minlen.default: 100
-    minlen.type: +integer
+    minlen.type: 0+integer
     minlen.type.error: <minlen> must be a positive integer
 
 =item -d | --seq-embed
@@ -320,14 +344,14 @@ Embed sequences into GFF files (useful to view the annotation in Artemis)
 
 =item -b[last_prg] <blastprog> | --blast-program <blastprog>
 
-The type of blast to run
+The type of blast to run. Default: blastprog.default
 
 =for Euclid:
     blastprog.default: 'blastx'
 
 =item -e[value] <evalue> | --evalue <evalue>
 
-E-value cutoff when running blast
+E-value cutoff when running blast. Default: evalue.default
 
 =for Euclid:
     evalue.default: 1e-8
@@ -336,7 +360,7 @@ E-value cutoff when running blast
 
 =item -t[hreads] <threads> | --threads <threads>
 
-Run blast on multiple threads
+Run blast on multiple threads. Default: threads.default
 
 =for Euclid:
     threads.default: 1
@@ -345,7 +369,7 @@ Run blast on multiple threads
 
 =item -o[ut] <outfile> | --outfile <outfile>
 
-Filename for the final gff3 file
+Filename for the final gff3 file. Default: outfile.default
 
 =for Euclid:
     outfile.default: 'mannotatored.gff3'
